@@ -38,6 +38,8 @@ var exports = module.exports = function Carotte(config) {
     const channelPromise = connexion.then(conn => conn.createChannel());
 
     const exchangeCache = {};
+    let replyToSubscription;
+    const correlationIdCache = {};
 
     carotte.publish = function publish(qualifier, options, data) {
         if (arguments.length === 2) {
@@ -87,19 +89,54 @@ var exports = module.exports = function Carotte(config) {
             options = {};
         }
 
-        options.rpc = true;
+        const uid = puid.generate();
+        const correlationPromise = correlationIdCache[uid] = {};
+        correlationPromise.promise = new Promise((resolve, reject) => {
+            console.log('Promise\'d', `on ${uid}`);
+            correlationPromise.resolve = resolve;
+            correlationPromise.reject = reject;
+        });
+
+        if (!replyToSubscription) {
+            replyToSubscription = this.subscribe('', {}, ({ data, headers }) => {
+                const correlationId = headers['x-correlation-id'];
+                console.log(headers);
+
+                if (correlationId && correlationIdCache[correlationId]) {
+                    console.log('GOT IT BRO');
+                    consumerDebug(`Found a correlated callback for message: ${correlationId}`);
+                    correlationIdCache[correlationId].resolve(data);
+                }
+            }, {});
+        }
+
+        replyToSubscription.then(q => {
+            const queueName = q.queue;
+            options.headers = {
+                'x-reply-to': queueName,
+                'x-correlation-id': uid
+            };
+
+            this.publish(qualifier, options, data);
+        });
+
+        return correlationPromise.promise;
+
 
         return new Promise((resolve, reject) => {
+            if (!replyToSubscription) {
+                replyToSubscription = this.subscribe;
+            }
             this.subscribe('', {
                 queue: { durable: false }
             }, ({ data }) => {
-                console.log(data);
                 resolve(data);
             }, {})
             .then(q => {
                 const queueName = q.queue;
                 options.headers = {
-                    'x-reply-to': queueName
+                    'x-reply-to': queueName,
+                    'x-correlation-id': puid.generate()
                 };
                 this.publish(qualifier, options, data);
             });
@@ -157,18 +194,21 @@ var exports = module.exports = function Carotte(config) {
                             const content = JSON.parse(message.content.toString());
 
                             consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
+
                             try {
-                                Promise.resolve(handler({ data: content.data })).then(res => {
-                                    if (message.properties.headers['x-reply-to']) {
-                                        consumerDebug(`reply to ${message.properties.headers['x-reply-to']}`);
-                                        return this.publish(`direct/${message.properties.headers['x-reply-to']}`, res);
+                                Promise.resolve(handler({ data: content.data, headers: message.properties.headers })).then(res => {
+                                    const replyTo = message.properties.headers['x-reply-to'];
+                                    if (replyTo) {
+                                        consumerDebug(`reply to ${replyTo}`);
+                                        return this.publish(`direct/${replyTo}`, 
+                                            { headers: { 'x-correlation-id': message.properties.headers['x-correlation-id'] }}, res);
                                     }
                                 })
 
                                 consumerDebug('message handled correctly');
                                 channel.ack(message);
                             } catch (err) {
-                                consumerDebug('message handled badly');
+                                consumerDebug('message handled badly', err);
                                 channel.nack(message);
                             }
                         })
