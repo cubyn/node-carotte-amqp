@@ -1,0 +1,13 @@
+{
+  "name": "carotte",
+  "version": "0.0.1",
+  "description": "Carotte for a better world",
+  "main": "index.js",
+  "repository": "https://github.com/cubyn/carotte",
+  "author": "nbeydoon <nori@cubyn.com>",
+  "license": "GNU 3",
+  "dependencies": {
+    "amqplib": "^0.5.1",
+    "debug": "^2.6.0"
+  }
+}
