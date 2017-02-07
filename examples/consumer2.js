@@ -1,4 +1,4 @@
-const carotte = require('../')({
+const carotte = require('../src')({
     host: 'localhost'
 });
 
