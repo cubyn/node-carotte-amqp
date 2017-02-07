@@ -2,6 +2,7 @@
 
 const { join } = require('path');
 const debug = require('debug');
+const puid = new (require('puid'));
 const amqp = require('amqplib');
 
 
@@ -23,49 +24,98 @@ const EXCHANGES_AVAILABLE = [
     EXCHANGE_TYPE.TOPIC
 ];
 
-var exports = module.exports = function Carotte(config) {
-    const carotte = {};
+const pkg = getPackageJson();
 
-    const pkg = getPackageJson();
+var exports = module.exports = function Carotte(config) {
+    config = Object.assign({
+        serviceName: pkg.name
+    }, config);
+
+    const carotte = {};
 
     const connexion = amqp.connect(`amqp://${config.host}`);
 
-    const channel = connexion.then(conn => conn.createChannel());
+    const channelPromise = connexion.then(conn => conn.createChannel());
 
+    const exchangeCache = {};
 
     carotte.publish = function publish(qualifier, options, data) {
         if (arguments.length === 2) {
             data = options;
+            options = {};
         }
 
         options = Object.assign({
-
-        }, options, getType(qualifier));
-
-        if (!options.type) {
-            options.type = EXCHANGE_TYPE.DIRECT;
-        }
+            headers: {}
+        }, options, parseQualifier(qualifier));
 
         const exchangeName = getExchangeName(options);
 
-        return channel
+        return channelPromise
             .then(channel => {
-                channel.assertExchange(exchangeName, options.type, { durable: options.durable });
+                let ok;
+
+                if (!exchangeCache[exchangeName]) {
+                    producerDebug(`create exchange ${exchangeName}`)
+                    ok = channel.assertExchange(exchangeName, options.type, { durable: options.durable });
+                    exchangeCache[exchangeName] = ok;
+                } else {
+                    ok = exchangeCache[exchangeName];
+                }
+
                 const buffer = Buffer.from(JSON.stringify({ data }));
-                channel.publish(exchangeName, options.routingKey, buffer);
+
+                return ok
+                    .then(() => {
+                        producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
+                        channel.publish(
+                            exchangeName,
+                            options.routingKey,
+                            buffer,
+                            {
+                                headers: options.headers,
+                                contentType: 'application/json'
+                            }
+                        )
+                    });
             });
     };
 
     carotte.invoke = function invoke(qualifier, options, data) {
+        if (arguments.length === 2) {
+            data = options;
+            options = {};
+        }
+
+        options.rpc = true;
+
+        return new Promise((resolve, reject) => {
+            this.subscribe('', {
+                queue: { durable: false }
+            }, ({ data }) => {
+                console.log(data);
+                resolve(data);
+            }, {})
+            .then(q => {
+                const queueName = q.queue;
+                options.headers = {
+                    'x-reply-to': queueName
+                };
+                this.publish(qualifier, options, data);
+            });
+        })
 
     };
 
     carotte.subscribe = function subscribe(qualifier, options, handler, metas) {
         // options is optionnal thus change the params order
-        if (arguments.length === 3) {
+        if (arguments.length <= 3) {
             metas = handler;
             handler = options;
+            options = {};
         }
+
+        console.log(handler)
 
         metas = metas || {};
 
@@ -74,7 +124,7 @@ var exports = module.exports = function Carotte(config) {
             durable: true,
             queue: {},
             exchange: {}
-        }, options, getType(qualifier));
+        }, options, parseQualifier(qualifier));
 
         options.queue = Object.assign({
             exclusive: false
@@ -83,46 +133,37 @@ var exports = module.exports = function Carotte(config) {
         const exchangeName = getExchangeName(options);
 
         // once channel is ready
-        return channel
+        return channelPromise
             .then(channel => {
-                let queueName;
+                const queueName = getQueueName(options, config);
 
                 // create the exchange.
-                channel.assertExchange(exchangeName, options.type, {
-                    durable: options.exchange.durable
-                });
-
-                if (options.type === EXCHANGE_TYPE.DIRECT) {
-                    queueName = options.routingKey;
-                } else {
-                    if (config.serviceName) {
-                        queueName = `${config.serviceName}:${options.queueName}`;
-                    } else if (options.serviceName) {
-                        queueName = `${options.serviceName}:${options.queueName}`;
-                    } else {
-                        queueName = `${pkg.name}:${options.queueName}`;
-                    }
-                }
-
-                const queueName = getQueueName(options, )
-
-                // create the queue for this exchange.
-                return channel.assertQueue(queueName, {
-                        exclusive: options.queue.exclusive
+                return channel.assertExchange(exchangeName, options.type, {
+                        durable: options.exchange.durable
+                    })
+                    .then(() => {
+                        // create the queue for this exchange.
+                        return channel.assertQueue(queueName, {
+                            exclusive: options.queue.exclusive
+                        });
                     })
                     .then(q => {
+                        consumerDebug(`queue ${q.queue} ready.`)
                         // bind the newly created queue to the channel
-                        channel.bindQueue(q.queue, exchangeName, options.routingKey);
-
-                        consumerDebug('queue ready to listen incomming messages');
+                        channel.bindQueue(q.queue, exchangeName, options.routingKey || q.queue);
+                        consumerDebug(`${q.queue} binded on ${exchangeName} with ${options.routingKey}`);
 
                         return channel.consume(q.queue, message => {
                             const content = JSON.parse(message.content.toString());
-                            consumerDebug('message handled');
+
+                            consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
                             try {
-                                const res = handler({
-                                    data: content.data
-                                });
+                                Promise.resolve(handler({ data: content.data })).then(res => {
+                                    if (message.properties.headers['x-reply-to']) {
+                                        consumerDebug(`reply to ${message.properties.headers['x-reply-to']}`);
+                                        return this.publish(`direct/${message.properties.headers['x-reply-to']}`, res);
+                                    }
+                                })
 
                                 consumerDebug('message handled correctly');
                                 channel.ack(message);
@@ -130,7 +171,8 @@ var exports = module.exports = function Carotte(config) {
                                 consumerDebug('message handled badly');
                                 channel.nack(message);
                             }
-                        });
+                        })
+                        .then(() => q);
                     });
             });
     };
@@ -141,7 +183,7 @@ var exports = module.exports = function Carotte(config) {
 exports.EXCHANGE_TYPE = EXCHANGE_TYPE;
 exports.EXCHANGES_AVAILABLE = EXCHANGES_AVAILABLE;
 
-function getType(qualifier) {
+function parseQualifier(qualifier) {
     const [
         type,
         routingKey,
@@ -149,9 +191,9 @@ function getType(qualifier) {
     ] = qualifier.split('/');
 
     return {
-        queueName,
-        routingKey,
-        type
+        queueName: queueName || '',
+        routingKey: routingKey || '',
+        type: type || EXCHANGE_TYPE.DIRECT
     }
 }
 
@@ -173,4 +215,16 @@ function getExchangeName(options) {
     }
 
     return '';
+}
+
+function getQueueName(options, config) {
+    if (options.type === EXCHANGE_TYPE.DIRECT) {
+        return options.routingKey;
+    }
+    if (config.serviceName) {
+        return `${config.serviceName}:${options.queueName}`;
+    }
+    if (options.serviceName) {
+        return `${options.serviceName}:${options.queueName}`;
+    }
 }

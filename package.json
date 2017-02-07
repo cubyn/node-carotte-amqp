@@ -8,6 +8,7 @@
   "license": "GNU 3",
   "dependencies": {
     "amqplib": "^0.5.1",
-    "debug": "^2.6.0"
+    "debug": "^2.6.0",
+    "puid": "^1.0.5"
   }
 }

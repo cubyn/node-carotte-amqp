@@ -3,8 +3,8 @@ const carotte = require('../')({
 });
 
 
-carotte.subscribe('topic/my.routing.key.a/my.routing.key.a', ({ data }) => {
-    console.log(data);
+carotte.subscribe('direct/my.routing.key.a/my.routing.key.a', ({ data }) => {
+    return data;
 }, {
     schema: {},
     permissions: []
