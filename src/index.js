@@ -22,7 +22,8 @@ const pkg = getPackageJson();
 
 var exports = module.exports = function Carotte(config) {
     config = Object.assign({
-        serviceName: pkg.name
+        serviceName: pkg.name,
+        host: 'localhost:5672'
     }, config);
 
     const carotte = {};
@@ -59,12 +60,14 @@ var exports = module.exports = function Carotte(config) {
                     ok = exchangeCache[exchangeName];
                 }
 
+                channel.on('error', function() {});
+
                 const buffer = Buffer.from(JSON.stringify({ data }));
 
                 return ok
                     .then(() => {
                         producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
-                        channel.publish(
+                        return channel.publish(
                             exchangeName,
                             options.routingKey,
                             buffer,
@@ -92,16 +95,16 @@ var exports = module.exports = function Carotte(config) {
 
                 if (correlationId && correlationIdCache[correlationId]) {
                     consumerDebug(`Found a correlated callback for message: ${correlationId}`);
-                    correlationIdCache[correlationId].resolve(data);
+                    correlationIdCache[correlationId].resolve({ data });
                 }
             }, {});
         }
 
         replyToSubscription.then(q => {
-            options.headers = ({
+            options.headers = Object.assign({
                 'x-reply-to': q.queue,
                 'x-correlation-id': uid
-            }, option.headers);
+            }, options.headers);
 
             this.publish(qualifier, options, data);
         });
