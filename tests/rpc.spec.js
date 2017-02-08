@@ -69,6 +69,17 @@ describe('rpc', () => {
             });
         });
 
+        it('should be able to omit options parameter', (done) => {
+            carotte.subscribe('fanout/abcdef', { queue: { exclusive: true } }, ({ data }) => {
+                return { a: 2 };
+            })
+            .then(() => {
+                return carotte.parallel('fanout', { hello: 'world' }, () => {
+                    done();
+                });
+            });
+        });
+
         it('should be able to clear a parallel execution', (done) => {
             carotte.subscribe('fanout/hello-rpc1', { exchangeName: 'test', exclusive: false, queue: { exclusive: true } }, ({ data }) => {
                 return { a: 2 };

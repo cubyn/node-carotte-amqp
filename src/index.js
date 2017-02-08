@@ -162,7 +162,7 @@ function Carotte(config) {
     };
 
     carotte.parallel = function parallel(qualifier, options, payload, callback) {
-        if (arguments.length === 2) {
+        if (arguments.length === 3) {
             callback = payload;
             payload = options;
             options = {};
