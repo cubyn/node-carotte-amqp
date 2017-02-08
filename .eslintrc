@@ -1,1 +1,12 @@
-{ "extends": ["cubyn"] }
+{
+    "extends": ["cubyn"],
+    "env": {
+        "mocha": true
+    },
+    "rules": {
+        "import/no-extraneous-dependencies": [
+            "error", 
+            { "devDependencies": [ "**/*.spec.js" ] }
+        ]
+    }
+}
