@@ -134,6 +134,7 @@ function Carotte(config) {
                 if (correlationId && correlationIdCache[correlationId]) {
                     consumerDebug(`Found a correlated callback for message: ${correlationId}`);
                     correlationIdCache[correlationId].resolve({ data });
+                    delete correlationIdCache[correlationId];
                 }
             });
         }
