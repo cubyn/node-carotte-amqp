@@ -49,7 +49,7 @@ describe('subscriber', () => {
         });
 
         it('should be able to receive a message on a topic exchange', (done) => {
-            carotte.subscribe('topic/topic-key-1/queue-name', { queue: { exclusive: true } }, ( { data } ) => {
+            carotte.subscribe('topic/topic-key-1/my-queue-name', { queue: { exclusive: true } }, ( { data } ) => {
                 try {
                     expect(data.hello).to.be.defined;
                     expect(data.hello).to.be.eql('world');

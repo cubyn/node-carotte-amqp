@@ -11,6 +11,9 @@ function parseQualifier(qualifier) {
     if (type !== 'fanout' && routingKey === undefined) {
         routingKey = type;
         type = EXCHANGE_TYPE.DIRECT;
+    } else if (type === 'fanout' && queueName === undefined) {
+        queueName = routingKey;
+        routingKey = '';
     }
 
     return {

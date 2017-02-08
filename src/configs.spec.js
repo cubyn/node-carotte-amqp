@@ -67,6 +67,13 @@ describe('configs', () => {
             expect(qualifier).to.be.defined;
             expect(qualifier.queueName).to.be.eql('');
         });
+
+        it('should have optional routing key in qualifier for mode fanout', () => {
+            const qualifier = configs.parseQualifier('fanout/hello-world');
+            expect(qualifier).to.be.defined;
+            expect(qualifier.queueName).to.be.eql('hello-world');
+            expect(qualifier.routingKey).to.be.eql('');
+        });
     });
 
     describe('getExchangeName', () => {
