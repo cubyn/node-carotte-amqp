@@ -91,14 +91,14 @@ function Carotte(config) {
         const correlationPromise = correlationIdCache[uid] = createDeferred();
 
         if (!replyToSubscription) {
-            replyToSubscription = this.subscribe('', {}, ({ data, headers }) => {
+            replyToSubscription = this.subscribe('', { queue: { exclusive: true } }, ({ data, headers }) => {
                 const correlationId = headers['x-correlation-id'];
 
                 if (correlationId && correlationIdCache[correlationId]) {
                     consumerDebug(`Found a correlated callback for message: ${correlationId}`);
                     correlationIdCache[correlationId].resolve({ data });
                 }
-            }, {});
+            });
         }
 
         replyToSubscription.then(q => {
