@@ -117,7 +117,7 @@ function Carotte(config) {
         let channel;
 
         // options is optionnal thus change the params order
-        if (arguments.length <= 3) {
+        if (typeof options === 'function') {
             metas = handler;
             handler = options;
             options = {};
