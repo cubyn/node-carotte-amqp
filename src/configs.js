@@ -2,7 +2,7 @@ const { join } = require('path');
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
 
 function parseQualifier(qualifier) {
-    const [
+    let [
         type,
         routingKey,
         queueName

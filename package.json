@@ -8,7 +8,7 @@
   "license": "GNU 3",
   "scripts": {
       "test": "make test",
-      "lint" "make lint"
+      "lint": "make lint"
   },
   "dependencies": {
     "amqplib": "^0.5.1",
