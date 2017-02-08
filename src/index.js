@@ -1,6 +1,7 @@
 const debug = require('debug');
 const Puid = require('puid');
 const amqp = require('amqplib');
+const bouillonAgent = require('./bouillon-agent');
 const carottePackage = require('../package');
 
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
@@ -38,7 +39,8 @@ const pkg = getPackageJson();
 function Carotte(config) {
     config = Object.assign({
         serviceName: pkg.name,
-        host: 'localhost:5672'
+        host: 'localhost:5672',
+        enableBouillon: false
     }, config);
 
     const carotte = {};
@@ -165,7 +167,8 @@ function Carotte(config) {
                         options.routingKey,
                         buffer, {
                             headers: Object.assign({}, options.headers, {
-                                'x-carotte-version': carottePackage.version
+                                'x-carotte-version': carottePackage.version,
+                                'x-origin-service': carottePackage.name
                             }),
                             contentType: 'application/json'
                         }
@@ -261,13 +264,17 @@ function Carotte(config) {
             options = {};
         }
 
-        meta = meta || { timer: {} };
+        if (meta) {
+            bouillonAgent.addSubscriber(qualifier, meta);
+        } else {
+            meta = { timer: {} };
+        }
 
-        meta.timer = {
+        meta.timer = Object.assign({
             delay: 0,
             max: 0,
             strategy: 'fixed'
-        };
+        }, meta.timer);
 
         options = parseSubscriptionOptions(options, qualifier);
 
@@ -300,9 +307,11 @@ function Carotte(config) {
                     const { headers } = message.properties;
                     const content = JSON.parse(message.content.toString());
                     const { data } = content;
+                    const startTime = new Date().getTime();
 
                     return execInPromise(handler, { data, headers })
                     .then(res => {
+                        bouillonAgent.logStats(qualifier, new Date().getTime() - startTime, headers['x-origin-service']);
                         // send back response if needed
                         return this.replyToPublisher(message, res);
                     })
@@ -371,6 +380,10 @@ function Carotte(config) {
         }
         return Promise.resolve();
     };
+
+    if (config.enableBouillon) {
+        bouillonAgent.ensureBouillonAgent(carotte);
+    }
 
     return carotte;
 }
