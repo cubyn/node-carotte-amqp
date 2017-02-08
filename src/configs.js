@@ -2,13 +2,13 @@ const { join } = require('path');
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
 
 function parseQualifier(qualifier) {
-    let [
+    const [
         type,
         routingKey,
         queueName
     ] = qualifier.split('/');
 
-    if (type !=='fanout' && routingKey === undefined) {
+    if (type !== 'fanout' && routingKey === undefined) {
         routingKey = type;
         type = EXCHANGE_TYPE.DIRECT;
     }

@@ -1,8 +1,5 @@
-'use strict';
-
-const { join } = require('path');
 const debug = require('debug');
-const puid = new (require('puid'));
+const Puid = require('puid');
 const amqp = require('amqplib');
 
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
@@ -15,6 +12,7 @@ const {
     parseSubscriptionOptions
 } = require('./configs');
 
+const puid = new Puid();
 const initDebug = debug('carotte:init');
 const connexionsDebug = debug('carotte:connexions');
 const consumerDebug = debug('carotte:consumer');
@@ -173,8 +171,8 @@ function Carotte(config) {
 
                 // create the exchange.
                 return chan.assertExchange(exchangeName, options.type, {
-                        durable: options.exchange.durable
-                    });
+                    durable: options.exchange.durable
+                });
             })
             .then(() => {
                 // create the queue for this exchange.
@@ -192,38 +190,40 @@ function Carotte(config) {
                     consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
 
                     return execInPromise(handler, {
-                            data: content.data,
-                            headers: message.properties.headers
-                        })
-                        .then(res => {
-                            const replyTo = message.properties.headers['x-reply-to'];
-                            const correlationId = message.properties.headers['x-correlation-id'];
+                        data: content.data,
+                        headers: message.properties.headers
+                    })
+                    .then(res => {
+                        const replyTo = message.properties.headers['x-reply-to'];
+                        const correlationId = message.properties.headers['x-correlation-id'];
 
-                            // send back response if needed
-                            if (replyTo) {
-                                consumerDebug(`reply to ${correlationId} on queue ${replyTo}`);
-                                return this.publish(`direct/${replyTo}`, {
-                                    headers: {
-                                        'x-correlation-id': correlationId
-                                    }
-                                }, res);
+                        if (!replyTo) {
+                            return undefined;
+                        }
+
+                        // send back response if needed
+                        consumerDebug(`reply to ${correlationId} on queue ${replyTo}`);
+                        return this.publish(`direct/${replyTo}`, {
+                            headers: {
+                                'x-correlation-id': correlationId
                             }
-                        })
-                        .then(() => {
-                            consumerDebug('Handler: success');
-                            chan.ack(message);
-                        })
-                        .catch(err => {
-                            consumerDebug('Handler: Error');
-                            chan.nack(message);
-                        });
+                        }, res);
+                    })
+                    .then(() => {
+                        consumerDebug('Handler: success');
+                        chan.ack(message);
+                    })
+                    .catch(err => {
+                        consumerDebug('Handler: Error');
+                        chan.nack(message);
+                    });
                 })
                 .then(identity(q));
             });
     };
 
     return carotte;
-};
+}
 
 Carotte.EXCHANGE_TYPE = EXCHANGE_TYPE;
 Carotte.EXCHANGES_AVAILABLE = EXCHANGES_AVAILABLE;

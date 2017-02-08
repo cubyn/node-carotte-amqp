@@ -14,6 +14,6 @@ const EXCHANGES_AVAILABLE = [
 
 module.exports = {
     EXCHANGES_AVAILABLE,
-    EXCHANGE_TYPE,
+    EXCHANGE_TYPE
 };
 
