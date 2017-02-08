@@ -1,6 +1,7 @@
 const debug = require('debug');
 const Puid = require('puid');
 const amqp = require('amqplib');
+const carottePackage = require('../package');
 
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
 const { createDeferred, execInPromise, identity } = require('./utils');
@@ -52,6 +53,8 @@ function Carotte(config) {
                     this.cleanExchangeCache();
                     channel = null;
                 });
+                // this allow chan to throw on errors
+                chan.once('error', () => {});
                 return chan;
             });
 
@@ -77,8 +80,6 @@ function Carotte(config) {
         producerDebug('called');
         return this.getChannel()
             .then(chan => {
-                // this allow chan to throw on errors
-                chan.once('error', () => {});
                 let ok;
 
                 if (!exchangeCache[exchangeName]) {
@@ -138,7 +139,8 @@ function Carotte(config) {
         replyToSubscription.then(q => {
             options.headers = Object.assign({
                 'x-reply-to': q.queue,
-                'x-correlation-id': uid
+                'x-correlation-id': uid,
+                'x-current-version': carottePackage
             }, options.headers);
 
             this.publish(qualifier, options, payload);
