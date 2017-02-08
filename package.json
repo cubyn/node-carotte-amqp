@@ -6,6 +6,9 @@
   "repository": "https://github.com/cubyn/carotte",
   "author": "nbeydoon <nori@cubyn.com>",
   "license": "GNU 3",
+  "scripts": {
+      "test": "make test"
+  },
   "dependencies": {
     "amqplib": "^0.5.1",
     "debug": "^2.6.0",

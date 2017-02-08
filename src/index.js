@@ -11,7 +11,8 @@ const {
     parseQualifier,
     getPackageJson,
     getExchangeName,
-    getQueueName
+    getQueueName,
+    parseSubscriptionOptions
 } = require('./configs');
 
 const initDebug = debug('carotte:init');
@@ -20,7 +21,7 @@ const producerDebug = debug('carotte:producer');
 
 const pkg = getPackageJson();
 
-var exports = module.exports = function Carotte(config) {
+function Carotte(config) {
     config = Object.assign({
         serviceName: pkg.name,
         host: 'localhost:5672'
@@ -191,24 +192,7 @@ var exports = module.exports = function Carotte(config) {
     return carotte;
 };
 
-exports.EXCHANGE_TYPE = EXCHANGE_TYPE;
-exports.EXCHANGES_AVAILABLE = EXCHANGES_AVAILABLE;
+Carotte.EXCHANGE_TYPE = EXCHANGE_TYPE;
+Carotte.EXCHANGES_AVAILABLE = EXCHANGES_AVAILABLE;
 
-function parseSubscriptionOptions(options, qualifier) {
-    options = Object.assign({
-        routingKey: '',
-        durable: true,
-        queue: {},
-        exchange: {}
-    }, options, parseQualifier(qualifier));
-
-    options.exchange = Object.assign({
-        exclusive: false,
-        durable: true
-    });
-
-    options.exchange = Object.assign({
-        durable: true
-    });
-    return options;
-}
+module.exports = Carotte;
