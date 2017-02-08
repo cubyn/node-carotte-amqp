@@ -74,10 +74,10 @@ function Carotte(config) {
                     const deferredPromise = correlationIdCache[correlationId];
                     consumerDebug(`Found a correlated callback for message: ${correlationId}`);
                     if (deferredPromise.resolve) {
-                        deferredPromise.resolve({ data });
+                        deferredPromise.resolve({ data, headers });
                         delete correlationIdCache[correlationId];
                     } else {
-                        deferredPromise();
+                        deferredPromise({ data, headers });
                     }
                 }
             });
