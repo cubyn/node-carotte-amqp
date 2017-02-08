@@ -17,7 +17,7 @@ describe('rpc', () => {
         });
 
         it('should receive response on data object', () => {
-            carotte.subscribe('direct/hello-rpc2', { queue: { exclusive: true } }, ( { data }) => {
+            carotte.subscribe('direct/hello-rpc2', { queue: { exclusive: true } }, ({ data }) => {
                 return { a: 2 };
             })
             .then(() => {
@@ -30,13 +30,13 @@ describe('rpc', () => {
         });
 
         it('should not handle RPC response if consumer respond with bad correlation ID', (done) => {
-            carotte.subscribe('direct/hello-rpc3', { queue: { exclusive: true } }, ( { data, headers }) => {
+            carotte.subscribe('direct/hello-rpc3', { queue: { exclusive: true } }, ({ data, headers }) => {
                 try {
                     headers['x-correlation-id'] = 'toto';
                     setTimeout(done, 1000);
                     return { a: 2 };
-                } catch(err) {
-                    done(err);
+                } catch (err) {
+                    return done(err);
                 }
             })
             .then(() => {
@@ -50,11 +50,11 @@ describe('rpc', () => {
 
     describe('parallel', () => {
         it('should receive response from multiple consumer with parallel', (done) => {
-            carotte.subscribe('fanout/hello-rpc1', { exchangeName: 'test', exclusive: false, queue: { exclusive: true } }, ( { data }) => {
+            carotte.subscribe('fanout/hello-rpc1', { exchangeName: 'test', exclusive: false, queue: { exclusive: true } }, ({ data }) => {
                 return { a: 2 };
             })
             .then(() => {
-                return carotte.subscribe('fanout/hello-rpc2', { exchangeName: 'test', exclusive: false, queue: { exclusive: true } }, ( { data }) => {
+                return carotte.subscribe('fanout/hello-rpc2', { exchangeName: 'test', exclusive: false, queue: { exclusive: true } }, ({ data }) => {
                     return { a: 2 };
                 });
             })
@@ -70,11 +70,11 @@ describe('rpc', () => {
         });
 
         it('should be able to clear a parallel execution', (done) => {
-            carotte.subscribe('fanout/hello-rpc1', { exchangeName: 'test', exclusive: false, queue: { exclusive: true } }, ( { data }) => {
+            carotte.subscribe('fanout/hello-rpc1', { exchangeName: 'test', exclusive: false, queue: { exclusive: true } }, ({ data }) => {
                 return { a: 2 };
             })
             .then(() => {
-                return carotte.subscribe('fanout/hello-rpc2', { exchangeName: 'test', exclusive: false, queue: { exclusive: true } }, ( { data }) => {
+                return carotte.subscribe('fanout/hello-rpc2', { exchangeName: 'test', exclusive: false, queue: { exclusive: true } }, ({ data }) => {
                     return { a: 2 };
                 });
             })

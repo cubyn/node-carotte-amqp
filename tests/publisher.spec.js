@@ -2,7 +2,6 @@ const expect = require('chai').expect;
 const carotte = require('../src');
 
 describe('publisher', () => {
-
     it('should return a promise', () => {
         const returnValue = carotte().publish('', {});
         expect(returnValue).to.be.defined;

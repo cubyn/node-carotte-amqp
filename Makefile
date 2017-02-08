@@ -3,7 +3,7 @@ deps:
 init:
 
 lint:
-	node_modules/.bin/eslint src
+	node_modules/.bin/eslint src tests
 
 rabbitmq-start:
 	@docker stop rabbitmq && docker rm rabbitmq >> /dev/null || true
