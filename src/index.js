@@ -16,8 +16,11 @@ const {
 } = require('./configs');
 
 const initDebug = debug('carotte:init');
+const connexionsDebug = debug('carotte:connexions');
 const consumerDebug = debug('carotte:consumer');
 const producerDebug = debug('carotte:producer');
+
+const errorToRetryRegex = /(311|320|405|506|541)/;
 
 const pkg = getPackageJson();
 
@@ -30,12 +33,36 @@ function Carotte(config) {
     const carotte = {};
 
     const connexion = amqp.connect(`amqp://${config.host}`);
-
-    const channelPromise = connexion.then(conn => conn.createChannel());
-
     const exchangeCache = {};
-    let replyToSubscription;
     const correlationIdCache = {};
+
+    let replyToSubscription;
+    let channel;
+
+    carotte.getChannel = function getChannel() {
+        if (channel) {
+            return Promise.resolve(channel);
+        }
+
+        channel = connexion
+            .then(conn => conn.createChannel())
+            .then(chan => {
+                initDebug('channel created correctly');
+                channel = chan;
+                chan.on('close', (err) => {
+                    connexionsDebug('channel closed trying to reopen');
+                    this.cleanExchangeCache();
+                    channel = null;
+                });
+                return chan;
+            });
+
+        return channel;
+    };
+
+    carotte.cleanExchangeCache = function cleanExchangeCache() {
+        Object.keys(exchangeCache).forEach(key => (exchangeCache[key] = undefined));
+    };
 
     carotte.publish = function publish(qualifier, options, data) {
         if (arguments.length === 2) {
@@ -49,46 +76,55 @@ function Carotte(config) {
 
         const exchangeName = getExchangeName(options);
 
-        return channelPromise
-            .then(channel => {
+        producerDebug('called');
+        return this.getChannel()
+            .then(chan => {
+                // this allow chan to throw on errors
+                chan.once('error', () => {});
                 let ok;
 
                 if (!exchangeCache[exchangeName]) {
                     producerDebug(`create exchange ${exchangeName}`);
-                    ok = channel.assertExchange(exchangeName, options.type, { durable: options.durable });
+                    ok = chan.assertExchange(exchangeName, options.type, {
+                        durable: options.durable
+                    });
                     exchangeCache[exchangeName] = ok;
                 } else {
+                    producerDebug(`$use exchange ${exchangeName} from cache`);
                     ok = exchangeCache[exchangeName];
                 }
 
-                channel.on('error', function() {});
+                return ok.then(() => {
+                    const buffer = Buffer.from(JSON.stringify({ data }));
 
-                const buffer = Buffer.from(JSON.stringify({ data }));
-
-                return ok
-                    .then(() => {
-                        producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
-                        return channel.publish(
-                            exchangeName,
-                            options.routingKey,
-                            buffer,
-                            {
-                                headers: options.headers,
-                                contentType: 'application/json'
-                            }
-                        )
-                    });
+                    producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
+                    return chan.publish(
+                        exchangeName,
+                        options.routingKey,
+                        buffer, {
+                            headers: options.headers,
+                            contentType: 'application/json'
+                        }
+                    );
+                });
+            }).catch(err => {
+                if (err.message.match(errorToRetryRegex)) {
+                    this.publish(qualifier, options, data);
+                }
+                throw err;
             });
     };
 
-    carotte.invoke = function invoke(qualifier, options, data) {
+    carotte.invoke = function invoke(qualifier, options, payload) {
         if (arguments.length === 2) {
-            data = options;
+            payload = options;
             options = {};
         }
 
         const uid = puid.generate();
-        const correlationPromise = correlationIdCache[uid] = createDeferred();
+        const correlationPromise = createDeferred();
+
+        correlationIdCache[uid] = correlationPromise;
 
         if (!replyToSubscription) {
             replyToSubscription = this.subscribe('', { queue: { exclusive: true } }, ({ data, headers }) => {
@@ -107,14 +143,14 @@ function Carotte(config) {
                 'x-correlation-id': uid
             }, options.headers);
 
-            this.publish(qualifier, options, data);
+            this.publish(qualifier, options, payload);
         });
 
         return correlationPromise.promise;
     };
 
     carotte.subscribe = function subscribe(qualifier, options, handler, metas) {
-        let channel;
+        let chan;
 
         // options is optionnal thus change the params order
         if (typeof options === 'function') {
@@ -131,29 +167,26 @@ function Carotte(config) {
         const queueName = getQueueName(options, config);
 
         // once channel is ready
-        return channelPromise
+        return this.getChannel()
             .then(ch => {
-                channel = ch;
+                chan = ch;
 
                 // create the exchange.
-                return channel.assertExchange(exchangeName, options.type, {
+                return chan.assertExchange(exchangeName, options.type, {
                         durable: options.exchange.durable
                     });
             })
             .then(() => {
                 // create the queue for this exchange.
-                return channel.assertQueue(queueName, {
-                    exclusive: options.queue.exclusive,
-                    durable: options.queue.durable
-                });
+                return chan.assertQueue(queueName, options.queue);
             })
             .then(q => {
                 consumerDebug(`queue ${q.queue} ready.`);
-                // bind the newly created queue to the channel
-                channel.bindQueue(q.queue, exchangeName, options.routingKey || q.queue);
+                // bind the newly created queue to the chan
+                chan.bindQueue(q.queue, exchangeName, options.routingKey || q.queue);
                 consumerDebug(`${q.queue} binded on ${exchangeName} with ${options.routingKey || q.queue}`);
 
-                return channel.consume(q.queue, message => {
+                return chan.consume(q.queue, message => {
                     const content = JSON.parse(message.content.toString());
 
                     consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
@@ -178,11 +211,11 @@ function Carotte(config) {
                         })
                         .then(() => {
                             consumerDebug('Handler: success');
-                            channel.ack(message);
+                            chan.ack(message);
                         })
                         .catch(err => {
                             consumerDebug('Handler: Error');
-                            channel.nack(message);
+                            chan.nack(message);
                         });
                 })
                 .then(identity(q));
