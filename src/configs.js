@@ -2,11 +2,16 @@ const { join } = require('path');
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
 
 function parseQualifier(qualifier) {
-    const [
+    let [
         type,
         routingKey,
         queueName
     ] = qualifier.split('/');
+
+    if (type !=='fanout' && routingKey === undefined) {
+        routingKey = type;
+        type = EXCHANGE_TYPE.DIRECT;
+    }
 
     return {
         queueName: queueName || '',
@@ -38,14 +43,12 @@ function getExchangeName(options) {
 
 function getQueueName(options, config) {
     if (options.type === EXCHANGE_TYPE.DIRECT) {
-        return options.routingKey;
+        return options.routingKey || '';
     }
     if (config.serviceName) {
         return `${config.serviceName}:${options.queueName}`;
     }
-    if (options.serviceName) {
-        return `${options.serviceName}:${options.queueName}`;
-    }
+
     return '';
 }
 
