@@ -101,7 +101,9 @@ function Carotte(config) {
                         exchangeName,
                         options.routingKey,
                         buffer, {
-                            headers: options.headers,
+                            headers: Object.assign({}, options.headers, {
+                                'x-carotte-version': carottePackage.version
+                            }),
                             contentType: 'application/json'
                         }
                     );
@@ -139,8 +141,7 @@ function Carotte(config) {
         replyToSubscription.then(q => {
             options.headers = Object.assign({
                 'x-reply-to': q.queue,
-                'x-correlation-id': uid,
-                'x-current-version': carottePackage
+                'x-correlation-id': uid
             }, options.headers);
 
             this.publish(qualifier, options, payload);
