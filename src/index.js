@@ -65,6 +65,27 @@ function Carotte(config) {
         Object.keys(exchangeCache).forEach(key => (exchangeCache[key] = undefined));
     };
 
+    carotte.getRpcQueue = function getRpcQueue() {
+        if (!replyToSubscription) {
+            replyToSubscription = this.subscribe('', { queue: { exclusive: true } }, ({ data, headers }) => {
+                const correlationId = headers['x-correlation-id'];
+
+                if (correlationId && correlationIdCache[correlationId]) {
+                    const deferredPromise = correlationIdCache[correlationId];
+                    consumerDebug(`Found a correlated callback for message: ${correlationId}`);
+                    if (deferredPromise.resolve) {
+                        deferredPromise.resolve({ data });
+                        delete correlationIdCache[correlationId];
+                    } else {
+                        deferredPromise();
+                    }
+                }
+            });
+        }
+
+        return replyToSubscription;
+    };
+
     carotte.publish = function publish(qualifier, options, data) {
         if (arguments.length === 2) {
             data = options;
@@ -108,9 +129,10 @@ function Carotte(config) {
                         }
                     );
                 });
-            }).catch(err => {
+            })
+            .catch(err => {
                 if (err.message.match(errorToRetryRegex)) {
-                    this.publish(qualifier, options, data);
+                    return this.publish(qualifier, options, data);
                 }
                 throw err;
             });
@@ -127,19 +149,7 @@ function Carotte(config) {
 
         correlationIdCache[uid] = correlationPromise;
 
-        if (!replyToSubscription) {
-            replyToSubscription = this.subscribe('', { queue: { exclusive: true } }, ({ data, headers }) => {
-                const correlationId = headers['x-correlation-id'];
-
-                if (correlationId && correlationIdCache[correlationId]) {
-                    consumerDebug(`Found a correlated callback for message: ${correlationId}`);
-                    correlationIdCache[correlationId].resolve({ data });
-                    delete correlationIdCache[correlationId];
-                }
-            });
-        }
-
-        replyToSubscription.then(q => {
+        this.getRpcQueue().then(q => {
             options.headers = Object.assign({
                 'x-reply-to': q.queue,
                 'x-correlation-id': uid
@@ -149,6 +159,32 @@ function Carotte(config) {
         });
 
         return correlationPromise.promise;
+    };
+
+    carotte.parallel = function parallel(qualifier, options, payload, callback) {
+        if (arguments.length === 2) {
+            callback = payload;
+            payload = options;
+            options = {};
+        }
+
+        const uid = puid.generate();
+        correlationIdCache[uid] = callback;
+
+        this.getRpcQueue().then(q => {
+            options.headers = Object.assign({
+                'x-reply-to': q.queue,
+                'x-correlation-id': uid
+            }, options.headers);
+
+            return this.publish(qualifier, options, payload);
+        });
+
+        return uid;
+    };
+
+    carotte.clearParallel = function clearParallel(parallelId) {
+        delete correlationIdCache[parallelId];
     };
 
     carotte.subscribe = function subscribe(qualifier, options, handler, metas) {
@@ -218,7 +254,7 @@ function Carotte(config) {
                         chan.ack(message);
                     })
                     .catch(err => {
-                        consumerDebug('Handler: Error');
+                        consumerDebug('Handler: Error', err);
                         chan.nack(message);
                     });
                 })
