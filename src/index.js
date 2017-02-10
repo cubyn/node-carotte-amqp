@@ -313,7 +313,7 @@ function Carotte(config) {
                         return chan.ack(message);
                     })
                     .catch(err => {
-                        const retry = meta.retry || {};
+                        const retry = meta.retry || { max: Infinity };
                         const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
 
                         let publishOptions = messageToOptions(qualifier, message);
