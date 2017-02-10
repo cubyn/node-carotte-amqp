@@ -4,9 +4,15 @@ const carotte = require('../src')({
 
 const num = 1;
 
-carotte.invoke('direct/my.routing.key.a', {
-    hello: num
-}).then(res => {
-    console.log(num, '=',res);
-})
+carotte
+    .invoke('direct/my.routing.key.a', {
+        hello: num
+    })
+    .then(res => {
+        console.log(num, '=',res);
+    })
+    .catch(error => {
+        console.log('error cached sisisisisi');
+        console.log(error);
+    });
 
