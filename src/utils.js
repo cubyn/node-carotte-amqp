@@ -82,5 +82,6 @@ module.exports = {
     execInPromise,
     identity,
     serializeError,
-    deserializeError
+    deserializeError,
+    extend
 };

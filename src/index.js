@@ -40,7 +40,9 @@ function Carotte(config) {
     config = Object.assign({
         serviceName: pkg.name,
         host: 'localhost:5672',
-        enableBouillon: false
+        enableBouillon: false,
+        deadLetter: 'dead-letter',
+        enableDeadLetter: false
     }, config);
 
     const carotte = {};
@@ -159,7 +161,7 @@ function Carotte(config) {
                     // isContentBuffer is used by internal functions who don't modify the content
                     const buffer = options.isContentBuffer
                         ? payload
-                        : Buffer.from(JSON.stringify({ data: payload }));
+                        : Buffer.from(JSON.stringify({ data: payload, context: options.context }));
 
                     producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
                     return chan.publish(
@@ -306,10 +308,10 @@ function Carotte(config) {
 
                     const { headers } = message.properties;
                     const content = JSON.parse(message.content.toString());
-                    const { data } = content;
+                    const { data, context } = content;
                     const startTime = new Date().getTime();
 
-                    return execInPromise(handler, { data, headers })
+                    return execInPromise(handler, { data, headers, context })
                     .then(res => {
                         bouillonAgent.logStats(qualifier, new Date().getTime() - startTime, headers['x-origin-service']);
                         // send back response if needed
@@ -325,7 +327,7 @@ function Carotte(config) {
 
                         const publishOptions = messageToOptions(qualifier, message);
 
-                        if (retry && retry.max > 0 && currentRetry < retry.max) {
+                        if (retry && retry.max > 0 && currentRetry <= retry.max) {
                             consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
                             const rePublishOptions = incrementRetryHeaders(publishOptions, retry);
                             const nextCall = computeNextCall(publishOptions);
@@ -337,7 +339,9 @@ function Carotte(config) {
                         } else {
                             consumerDebug(`Handler error: ${err.message}`);
                             delete publishOptions.exchange;
-                            this.publish('dead-letter', publishOptions, message.content)
+
+                            // publish the message to the dead-letter queue
+                            this.saveDeadLetterIfNeeded(publishOptions, message.content)
                                 .then(() => {
                                     message.properties.headers = cleanRetryHeaders(
                                         message.properties.headers
@@ -350,6 +354,19 @@ function Carotte(config) {
                 })
                 .then(identity(q));
             });
+    };
+
+    /**
+     * Publish the message to the dead letter queue according to the config
+     * @param {object} options - options to publish
+     * @param {object} content - content for dead letter
+     * @return {promise}
+     */
+    carotte.saveDeadLetterIfNeeded = function saveDeadLetterIfNeeded(options, content) {
+        if (config.enableDeadLetter) {
+            return this.publish(config.deadLetter, options, content);
+        }
+        return Promise.resolve();
     };
 
     /**
