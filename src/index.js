@@ -9,7 +9,8 @@ const {
     execInPromise,
     identity,
     deserializeError,
-    serializeError
+    serializeError,
+    extend
 } = require('./utils');
 const {
     parseQualifier,
@@ -98,7 +99,7 @@ function Carotte(config) {
 
                     const deferred = correlationIdCache[correlationId];
 
-                    delete headers['x-correlation-id'];
+                    // delete headers['x-correlation-id'];
 
                     // TODO manage parallel
                     if (isError) {
@@ -317,7 +318,7 @@ function Carotte(config) {
 
                         if (retry && retry.max > 0 && currentRetry < retry.max) {
                             consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
-                            const rePublishOptions = incrementRetry(publishOptions, retry);
+                            const rePublishOptions = incrementRetryHeaders(publishOptions, retry);
                             const nextCall = computeNextCall(publishOptions);
 
                             setTimeout(() => {
@@ -329,6 +330,9 @@ function Carotte(config) {
                             delete publishOptions.exchange;
                             this.publish('dead-letter', publishOptions, message.content)
                                 .then(() => {
+                                    message.properties.headers = cleanRetryHeaders(
+                                        message.properties.headers
+                                    );
                                     return this.replyToPublisher(message, err, true);
                                 })
                                 .then(() => chan.ack(message));
@@ -387,11 +391,11 @@ function messageToOptions(qualifier, message) {
 
 /**
  * Update all 'x-retry' headers
- * @param {object} qualifier - The exchange, queue formmatted in a string more info in the README.
- * @param {object} message - A message from the consume method
+ * @param {object} options - An object options compatible with publish
+ * @param {object} retry - Retry object from subscriber metas
  * @return {object} An object headers
  */
-function incrementRetry(options, retry) {
+function incrementRetryHeaders(options, retry) {
     const newHeaders = {};
 
     if (!('x-retry-max' in options.headers)) {
@@ -412,6 +416,20 @@ function incrementRetry(options, retry) {
     options.headers = Object.assign(options.headers, newHeaders);
 
     return options;
+}
+
+/**
+ * Filter unused headers
+ * @param {object} headers - An object containing all headers
+ * @return {object} An object headers
+ */
+function cleanRetryHeaders(headers) {
+    return extend({}, headers, [
+        'x-retry-max',
+        'x-retry-count',
+        'x-retry-strategy',
+        'x-retry-interval'
+    ]);
 }
 
 /**
