@@ -29,4 +29,45 @@ describe('utils', () => {
             return deferred.promise;
         });
     });
+
+    describe('deserializeError', () => {
+        it('should return provided error if its type is error', () => {
+            const error = new Error('hello');
+            const deserialized = utils.deserializeError(error);
+
+            expect(deserialized).to.deep.equal(error);
+        });
+
+        it('should parse provided string and return it as error', () => {
+            const error = { hello: 'world' };
+            const deserialized = utils.deserializeError(JSON.stringify(error));
+            expect(deserialized).to.deep.equal(error);
+        });
+
+        it('should return string as-is if invalid JSON', () => {
+            const error = `${JSON.stringify({ hello: 'world' })}aaa`;
+            const deserialized = utils.deserializeError(error);
+            expect(deserialized).to.deep.equal(new Error(error));
+        });
+
+        it('should work with error objects', () => {
+            const deserialized = utils.deserializeError({ message: 'Hello' });
+            expect(deserialized).to.deep.equal(new Error('hello'));
+        });
+    });
+
+    describe('serializeError', () => {
+        it('should return an object with all error properties including own properties', () => {
+            const error = new Error('hello');
+            error.status = 400;
+            const serialized = utils.serializeError(error);
+
+            expect(serialized).to.be.an('object');
+            expect(serialized.message).to.be.an('string')
+                .to.equal('hello');
+            expect(serialized.status).to.be.an('number')
+                .to.equal(400);
+            expect(serialized.stack).to.be.an('string');
+        });
+    });
 });

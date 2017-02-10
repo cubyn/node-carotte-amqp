@@ -16,7 +16,7 @@ const {
     getPackageJson,
     getExchangeName,
     getQueueName,
-    parseSubscriptionOptions,
+    parseSubscriptionOptions
 } = require('./configs');
 
 const puid = new Puid();
@@ -104,17 +104,13 @@ function Carotte(config) {
                     if (isError) {
                         deferred.reject({ data: deserializeError(data), headers });
                         delete correlationIdCache[correlationId];
+                    } else if (deferred.resolve) {
+                        deferred.resolve({ data, headers });
+                        delete correlationIdCache[correlationId];
                     } else {
-
-                        if (deferred.resolve) {
-                            deferred.resolve({ data, headers });
-                            delete correlationIdCache[correlationId];
-                        } else {
-                            deferred({ data, headers });
-                        }
+                        deferred({ data, headers });
                     }
                 }
-
             });
         }
 
@@ -138,7 +134,7 @@ function Carotte(config) {
             headers: {}
         }, options, parseQualifier(qualifier));
 
-        const exchangeName = options.exchange || getExchangeName(options);
+        const exchangeName = getExchangeName(options);
 
         producerDebug('called');
         return this.getChannel()
@@ -157,6 +153,7 @@ function Carotte(config) {
                 }
 
                 return ok.then(() => {
+                    // isContentBuffer is used by internal functions who don't modify the content
                     const buffer = options.isContentBuffer
                         ? payload
                         : Buffer.from(JSON.stringify({ data: payload }));
@@ -306,7 +303,7 @@ function Carotte(config) {
                     return execInPromise(handler, { data, headers })
                     .then(res => {
                         // send back response if needed
-                        this.replyToPublisher(message, res);
+                        return this.replyToPublisher(message, res);
                     })
                     .then(() => {
                         consumerDebug('Handler success');
@@ -316,7 +313,7 @@ function Carotte(config) {
                         const retry = meta.retry || { max: Infinity };
                         const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
 
-                        let publishOptions = messageToOptions(qualifier, message);
+                        const publishOptions = messageToOptions(qualifier, message);
 
                         if (retry && retry.max > 0 && currentRetry < retry.max) {
                             consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
@@ -326,13 +323,13 @@ function Carotte(config) {
                             setTimeout(() => {
                                 this.publish(qualifier, rePublishOptions, message.content)
                                     .then(() => chan.ack(message));
-                            }, retry.interval);
+                            }, nextCall);
                         } else {
                             consumerDebug(`Handler error: ${err.message}`);
                             delete publishOptions.exchange;
                             this.publish('dead-letter', publishOptions, message.content)
                                 .then(() => {
-                                    this.replyToPublisher(message, err, true);
+                                    return this.replyToPublisher(message, err, true);
                                 })
                                 .then(() => chan.ack(message));
                         }
@@ -363,13 +360,13 @@ function Carotte(config) {
                 payload = serializeError(payload);
                 newHeaders['x-error'] = 'true';
             }
-            
+
             return this.publish(`direct/${headers['x-reply-to']}`, {
                 headers: newHeaders
             }, payload);
         }
         return Promise.resolve();
-    }
+    };
 
     return carotte;
 }
@@ -409,7 +406,7 @@ function incrementRetry(options, retry) {
     if (!('x-retry-count' in options.headers)) {
         newHeaders['x-retry-count'] = '1';
     } else {
-        newHeaders['x-retry-count'] = `${Number(options.headers['x-retry-count'] || 0) + 1}`;
+        newHeaders['x-retry-count'] = `${Number(options.headers['x-retry-count']) + 1}`;
     }
 
     options.headers = Object.assign(options.headers, newHeaders);
@@ -417,15 +414,15 @@ function incrementRetry(options, retry) {
     return options;
 }
 
+/**
+ * Compute the delay before the retry with the help of headers
+ * @param {object} headers - The headers of the current message
+ * @return {number} The delay to wait before the next retry
+ */
 function computeNextCall(headers) {
     const strategy = headers['x-retry-strategy'];
     const current = Number(headers['x-retry-count']);
     const interval = Number(headers['x-retry-interval']);
-    const max = Number(headers['x-retry-max']);
-
-    if (strategy === 'direct' || !strategy) {
-        return interval;
-    }
 
     switch (strategy) {
         case 'exponential': {

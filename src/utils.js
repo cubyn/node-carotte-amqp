@@ -25,11 +25,7 @@ function execInPromise(func, ...params) {
 
 
 function extend(dest, src, filter) {
-    let srcKeys;
-
-    if (!filter) {
-        filter = [];
-    }
+    if (!filter) filter = [];
 
     Object.keys(src).forEach(key => {
         if (!filter.includes(key)) {
@@ -73,7 +69,7 @@ function deserializeError(inputError) {
 function serializeError(err) {
     var extractedError = {};
 
-    //properties of err can be non enumerable
+    // properties of err can be non enumerable
     Object.getOwnPropertyNames(err).forEach(key => {
         extractedError[key] = err[key];
     });
