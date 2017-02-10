@@ -48,7 +48,7 @@ function getQueueName(options, config) {
     if (options.type === EXCHANGE_TYPE.DIRECT) {
         return options.routingKey || '';
     }
-    if (config.serviceName) {
+    if (config.serviceName && options.queueName) {
         return `${config.serviceName}:${options.queueName}`;
     }
 
