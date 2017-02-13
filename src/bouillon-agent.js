@@ -55,6 +55,15 @@ function addSubscriber(qualifier, subscriber) {
 }
 
 /**
+ * Returns a previously stored subscriber (see @addSubscriber)
+ * @param  {string} qualifier carotte qualifier
+ * @return {object}           A subscriber meta object
+ */
+function getSubscriber(qualifier) {
+    return subscribers[qualifier];
+}
+
+/**
  * Register an usage stat into the service description
  * @param  {string} qualifier The carotte qualifier (see doc)
  * @param  {number} duration  The subscriber function processing time
@@ -75,7 +84,8 @@ function logStats(qualifier, duration, caller) {
             subscriber.callers.push(caller);
         }
 
-        if (subscriber.performances.duration.min > duration) {
+        if (subscriber.performances.duration.min > duration
+            || subscriber.performances.duration.min === 0) {
             subscriber.performances.duration.min = duration;
         }
 
@@ -99,23 +109,21 @@ function ensureBouillonAgent(carotte) {
         exchangeName: 'bouillon.fanout',
         queue: { durable: false, exclusive: true }
     }, ({ data }) => {
-        if (data) {
-            const serviceData = responseHandler[data.origin][data.type]();
-            const response = JSON.parse(JSON.stringify(serviceData));
+        const serviceData = responseHandler[data.origin][data.type]();
+        const response = JSON.parse(JSON.stringify(serviceData));
 
-            // reset all stats until next broadcast
-            for (const subscriber in serviceData.subscribers) {
-                addSubscriber(subscriber, serviceData.subscribers[subscriber]);
-            }
-
-            return response;
+        // reset all stats until next broadcast
+        for (const subscriber in serviceData.subscribers) {
+            addSubscriber(subscriber, serviceData.subscribers[subscriber]);
         }
-        return false;
+
+        return response;
     });
 }
 
 module.exports = {
     addSubscriber,
+    getSubscriber,
     logStats,
     ensureBouillonAgent
 };
