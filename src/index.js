@@ -474,7 +474,7 @@ function computeNextCall(headers) {
 
     switch (strategy) {
         case 'exponential': {
-            return Math.exp(current - 1) * interval;
+            return 2 ** (current - 1) * interval;
         }
         case 'direct':
         default: return interval;

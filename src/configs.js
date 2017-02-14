@@ -63,7 +63,7 @@ function parseSubscriptionOptions(options, qualifier) {
         exchange: {}
     }, options, parseQualifier(qualifier));
 
-    options.exchange = Object.assign({
+    options.queue = Object.assign({
         exclusive: false,
         durable: true
     });
