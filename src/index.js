@@ -37,6 +37,7 @@ const pkg = getPackageJson();
  * @param {object} config - Configuration for amqp
  */
 function Carotte(config) {
+    // assign default config to the use config
     config = Object.assign({
         serviceName: pkg.name,
         host: 'localhost:5672',
@@ -135,9 +136,7 @@ function Carotte(config) {
             options = {};
         }
 
-        options = Object.assign({
-            headers: {}
-        }, options, parseQualifier(qualifier));
+        options = Object.assign({ headers: {} }, options, parseQualifier(qualifier));
 
         const exchangeName = getExchangeName(options);
 
@@ -157,12 +156,12 @@ function Carotte(config) {
                     ok = exchangeCache[exchangeName];
                 }
 
-                return ok.then(() => {
-                    // isContentBuffer is used by internal functions who don't modify the content
-                    const buffer = options.isContentBuffer
-                        ? payload
-                        : Buffer.from(JSON.stringify({ data: payload, context: options.context }));
+                // isContentBuffer is used by internal functions who don't modify the content
+                const buffer = options.isContentBuffer
+                    ? payload
+                    : Buffer.from(JSON.stringify({ data: payload, context: options.context }));
 
+                return ok.then(() => {
                     producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
                     return chan.publish(
                         exchangeName,
@@ -249,12 +248,12 @@ function Carotte(config) {
     };
 
     /**
-     * Check if the response must be send back and send the response if needed
-     * @param {string} qualifier - A message from the consume method
-     * @param {object} options - Options to create queue, exchange and consumer
-     * @param {object} handler - The callback to execute for incomming messages
+     * Subcribe to a channel with a specific exchange type and consume incoming messages
+     * @param {string} qualifier - describe the type and the queue name of the consumer
+     * @param {object} options - Options for queue, exchange and consumer
+     * @param {object} handler - The callback consume each new messages
      * @param {object} meta - Meta description of the functions
-     * @return {promise} return the queue created
+     * @return {promise} return a new queue
      */
     carotte.subscribe = function subscribe(qualifier, options, handler, meta) {
         let chan;
@@ -285,74 +284,72 @@ function Carotte(config) {
 
         // once channel is ready
         return this.getChannel()
-            .then(ch => {
-                chan = ch;
-
-                // create the exchange.
-                return chan.assertExchange(exchangeName, options.type, {
-                    durable: options.exchange.durable
-                });
-            })
-            .then(() => {
-                // create the queue for this exchange.
-                return chan.assertQueue(queueName, options.queue);
-            })
+            .then(ch => (chan = ch))
+            // create the exchange.
+            .then(ch => chan.assertExchange(exchangeName, options.type, options.exchange))
+            // create the queue for this exchange.
+            .then(() => chan.assertQueue(queueName, options.queue))
             .then(q => {
                 consumerDebug(`queue ${q.queue} ready.`);
                 // bind the newly created queue to the chan
-                chan.bindQueue(q.queue, exchangeName, options.routingKey || q.queue);
-                consumerDebug(`${q.queue} binded on ${exchangeName} with ${options.routingKey || q.queue}`);
 
-                return chan.consume(q.queue, message => {
-                    consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
+                const bindedWith = options.routingKey || q.queue;
+                return chan.bindQueue(q.queue, exchangeName, bindedWith)
+                .then(() => {
+                    consumerDebug(`${q.queue} binded on ${exchangeName} with ${bindedWith}`);
 
-                    const { headers } = message.properties;
-                    const content = JSON.parse(message.content.toString());
-                    const { data, context } = content;
-                    const startTime = new Date().getTime();
+                    return chan.consume(q.queue, message => {
+                        consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
+                        const { headers } = message.properties;
+                        const content = JSON.parse(message.content.toString());
+                        const { data, context } = content;
+                        const startTime = new Date().getTime();
 
-                    return execInPromise(handler, { data, headers, context })
-                    .then(res => {
-                        bouillonAgent.logStats(qualifier, new Date().getTime() - startTime, headers['x-origin-service']);
-                        // send back response if needed
-                        return this.replyToPublisher(message, res);
-                    })
-                    .then(() => {
-                        consumerDebug('Handler success');
-                        return chan.ack(message);
-                    })
-                    .catch(err => {
-                        const retry = meta.retry || { max: Infinity };
-                        const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
+                        // execute the handler inside a try catch block
+                        return execInPromise(handler, { data, headers, context })
+                            .then(res => {
+                                const timeNow = new Date().getTime();
+                                bouillonAgent.logStats(qualifier, timeNow - startTime, headers['x-origin-service']);
+                                // send back response if needed
+                                return this.replyToPublisher(message, res);
+                            })
+                        .then(() => {
+                            consumerDebug('Handler success');
+                            return chan.ack(message);
+                        })
+                        .catch(err => {
+                            const retry = meta.retry || { max: Infinity };
+                            const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
 
-                        const publishOptions = messageToOptions(qualifier, message);
+                            const pubOptions = messageToOptions(qualifier, message);
 
-                        if (retry && retry.max > 0 && currentRetry <= retry.max) {
-                            consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
-                            const rePublishOptions = incrementRetryHeaders(publishOptions, retry);
-                            const nextCall = computeNextCall(publishOptions);
+                            if (retry && retry.max > 0 && currentRetry <= retry.max) {
+                                consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
+                                const rePublishOptions = incrementRetryHeaders(pubOptions, retry);
+                                const nextCallDelay = computeNextCall(pubOptions);
 
-                            setTimeout(() => {
-                                this.publish(qualifier, rePublishOptions, message.content)
-                                    .then(() => chan.ack(message));
-                            }, nextCall);
-                        } else {
-                            consumerDebug(`Handler error: ${err.message}`);
-                            delete publishOptions.exchange;
+                                setTimeout(() => {
+                                    this.publish(qualifier, rePublishOptions, message.content)
+                                        .then(() => chan.ack(message));
+                                }, nextCallDelay);
+                            } else {
+                                consumerDebug(`Handler error: ${err.message}`);
+                                delete pubOptions.exchange;
 
-                            // publish the message to the dead-letter queue
-                            this.saveDeadLetterIfNeeded(publishOptions, message.content)
-                                .then(() => {
-                                    message.properties.headers = cleanRetryHeaders(
-                                        message.properties.headers
-                                    );
-                                    return this.replyToPublisher(message, err, true);
-                                })
+                                // publish the message to the dead-letter queue
+                                this.saveDeadLetterIfNeeded(pubOptions, message.content)
+                                    .then(() => {
+                                        message.properties.headers = cleanRetryHeaders(
+                                                message.properties.headers
+                                                );
+                                        return this.replyToPublisher(message, err, true);
+                                    })
                                 .then(() => chan.ack(message));
-                        }
-                    });
-                })
-                .then(identity(q));
+                            }
+                        });
+                    })
+                    .then(identity(q));
+                });
             });
     };
 
