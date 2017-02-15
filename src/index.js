@@ -2,6 +2,7 @@ const debug = require('debug');
 const Puid = require('puid');
 const amqp = require('amqplib');
 const bouillonAgent = require('./bouillon-agent');
+const describe = require('./describe');
 const carottePackage = require('../package');
 
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
@@ -43,7 +44,8 @@ function Carotte(config) {
         host: 'localhost:5672',
         enableBouillon: false,
         deadLetter: 'dead-letter',
-        enableDeadLetter: false
+        enableDeadLetter: false,
+        autoDescribe: false
     }, config);
 
     const carotte = {};
@@ -267,6 +269,9 @@ function Carotte(config) {
 
         if (meta) {
             bouillonAgent.addSubscriber(qualifier, meta);
+            if (config.autoDescribe) {
+                describe.subscribeToDescribe(this, qualifier, meta);
+            }
         } else {
             meta = { timer: {} };
         }
