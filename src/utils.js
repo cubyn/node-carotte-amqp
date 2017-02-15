@@ -1,10 +1,16 @@
-function createDeferred() {
+function createDeferred(timeout) {
     const deferred = {};
 
     deferred.promise = new Promise((resolve, reject) => {
         deferred.resolve = resolve;
         deferred.reject = reject;
     });
+
+    if (timeout) {
+        deferred.timeoutFunction = setTimeout(() => {
+            deferred.reject(new Error(`${timeout}ms timeout reached`));
+        }, timeout);
+    }
 
     return deferred;
 }

@@ -28,6 +28,20 @@ describe('utils', () => {
 
             return deferred.promise;
         });
+
+        it('should resolve after the specified timeout', () => {
+            const delay = 1000;
+            const startTime = Date.now();
+            const deferred = utils.createDeferred(delay);
+
+            return deferred.promise.catch(err => {
+                const elapsedTime = Date.now() - startTime;
+                // delays are approximative with JS ticks
+                expect(elapsedTime).to.be.gt(delay - 10);
+                expect(elapsedTime).to.be.lt(delay + 10);
+                expect(err.message).to.be.eql('1000ms timeout reached');
+            });
+        });
     });
 
     describe('deserializeError', () => {
