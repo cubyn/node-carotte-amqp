@@ -74,7 +74,20 @@ describe('rpc', () => {
                 return { a: 2 };
             })
             .then(() => {
-                return carotte.parallel('fanout', { hello: 'world' }, () => {
+                return carotte.parallel('fanout', { hello: 'world' }, (error, { data }) => {
+                    expect(data.a).to.be.eql(2);
+                    done();
+                });
+            });
+        });
+
+        it('should be able to receive execution errors', (done) => {
+            carotte.subscribe('fanout/abcdefg', { durable: false, exchangeName: 'errors', queue: { exclusive: true } }, ({ data }) => {
+                throw new Error('nope');
+            }, { retry: { max: 5 } })
+            .then(() => {
+                return carotte.parallel('fanout', { exchangeName: 'errors' }, { hello: 'world' }, (error) => {
+                    expect(error.message).to.be.eql('nope');
                     done();
                 });
             });
