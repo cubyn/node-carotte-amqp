@@ -50,7 +50,13 @@ function Carotte(config) {
 
     const carotte = {};
 
-    const connexion = amqp.connect(`amqp://${config.host}`);
+    const connexion = amqp.connect(`amqp://${config.host}`, {
+        clientProperties: {
+            'carotte-version': carottePackage.version,
+            'carotte-host-name': pkg.name,
+            'carotte-host-version': pkg.version
+        }
+    });
     const exchangeCache = {};
     const correlationIdCache = {};
 
