@@ -117,14 +117,16 @@ function Carotte(config) {
                     clearInterval(deferred.timeoutFunction);
 
                     // TODO manage parallel
-                    if (isError) {
+                    if (isError && deferred.reject) {
                         deferred.reject({ data: deserializeError(data), headers });
                         delete correlationIdCache[correlationId];
+                    } else if (isError) {
+                        deferred(deserializeError(data), { data, headers });
                     } else if (deferred.resolve) {
                         deferred.resolve({ data, headers });
                         delete correlationIdCache[correlationId];
                     } else {
-                        deferred({ data, headers });
+                        deferred(null, { data, headers });
                     }
                 }
             });
