@@ -136,11 +136,11 @@ function Carotte(config) {
     /**
      * Invoke a function
      * @param {string} qualifier - A message from the consume method
-     * @param {object} options - (optionnal) Options for exchange and publish
-     * @param {object} payload - Data to send to the function
+     * @param {object} [options] - Options for exchange and publish
+     * @param {object} [payload] - Data to send to the function
      * @return {promise} return when message is published
      */
-    carotte.publish = function publish(qualifier, options, payload) {
+    carotte.publish = function publish(qualifier, options, payload = {}) {
         if (arguments.length === 2) {
             payload = options;
             options = {};

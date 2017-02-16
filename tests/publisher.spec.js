@@ -11,7 +11,7 @@ describe('publisher', () => {
     });
 
     it('should resolve with broker publication status, and should be able to publish', () => {
-        return carotte().publish('', {})
+        return carotte().publish('')
             .then(res => {
                 expect(res).to.be.eql(true);
             });
