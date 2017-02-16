@@ -93,6 +93,7 @@ function Carotte(config) {
 
     /**
      * create a queue for rpc responses
+     * @param {object} [options.timeout] return promise will be rejected if timeout ms is expired
      * @return {promise} return a new queue
      */
     carotte.getRpcQueue = function getRpcQueue() {
@@ -106,7 +107,8 @@ function Carotte(config) {
 
                     const deferred = correlationIdCache[correlationId];
 
-                    // delete headers['x-correlation-id'];
+                    // clear the RPC timeout interval if set
+                    clearInterval(deferred.timeoutFunction);
 
                     // TODO manage parallel
                     if (isError) {
@@ -200,7 +202,7 @@ function Carotte(config) {
         }
 
         const uid = puid.generate();
-        const correlationPromise = createDeferred();
+        const correlationPromise = createDeferred(options.timeout);
 
         correlationIdCache[uid] = correlationPromise;
 
