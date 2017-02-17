@@ -15,6 +15,10 @@ function createDeferred(timeout) {
     return deferred;
 }
 
+function empty() {
+
+}
+
 function identity(x) {
     return () => x;
 }
@@ -83,11 +87,21 @@ function serializeError(err) {
     return extend(extractedError, err);
 }
 
+const emptyTransport = {
+    log: empty,
+    info: empty,
+    // only disable error logs when tests are run
+    // eslint-disable-next-line no-console
+    error: (!process.env.LOADED_MOCHA_OPTS) ? /* istanbul ignore next */ console.error : empty,
+    warn: empty
+};
+
 module.exports = {
     createDeferred,
     execInPromise,
     identity,
     serializeError,
     deserializeError,
-    extend
+    extend,
+    emptyTransport
 };

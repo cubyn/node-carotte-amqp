@@ -12,7 +12,8 @@ const {
     identity,
     deserializeError,
     serializeError,
-    extend
+    extend,
+    emptyTransport
 } = require('./utils');
 const {
     parseQualifier,
@@ -45,7 +46,8 @@ function Carotte(config) {
         enableBouillon: false,
         deadLetter: 'dead-letter',
         enableDeadLetter: false,
-        autoDescribe: false
+        autoDescribe: false,
+        transport: emptyTransport
     }, config);
 
     const carotte = {};
@@ -78,12 +80,15 @@ function Carotte(config) {
                 initDebug('channel created correctly');
                 channel = chan;
                 chan.on('close', (err) => {
+                    config.transport.error(`[${config.serviceName}]`, err);
                     connexionsDebug('channel closed trying to reopen');
                     this.cleanExchangeCache();
                     channel = null;
                 });
                 // this allow chan to throw on errors
-                chan.once('error', () => {});
+                chan.once('error', (err) => {
+                    config.transport.error(`[${config.serviceName}]`, err);
+                });
                 return chan;
             });
 
@@ -175,6 +180,9 @@ function Carotte(config) {
 
                 return ok.then(() => {
                     producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
+                    config.transport.info(`[${config.serviceName}] > [${qualifier}]`,
+                        options.context, payload);
+
                     return chan.publish(
                         exchangeName,
                         options.routingKey,
@@ -189,6 +197,7 @@ function Carotte(config) {
                 });
             })
             .catch(err => {
+                config.transport.error(`[${config.serviceName}]`, options.context, err);
                 if (err.message.match(errorToRetryRegex)) {
                     return this.publish(qualifier, options, payload);
                 }
@@ -320,6 +329,9 @@ function Carotte(config) {
                         const { data, context } = content;
                         const startTime = new Date().getTime();
 
+                        config.transport.info(`[${config.serviceName}] < ${headers['x-origin-service']}`,
+                            context, content);
+
                         // execute the handler inside a try catch block
                         return execInPromise(handler, { data, headers, context })
                             .then(res => {
@@ -333,6 +345,8 @@ function Carotte(config) {
                             return chan.ack(message);
                         })
                         .catch(err => {
+                            config.transport.error(`[${config.serviceName}]`, context, err);
+
                             const retry = meta.retry || { max: Infinity };
                             const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
 
