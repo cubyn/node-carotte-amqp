@@ -13,7 +13,8 @@ const {
     deserializeError,
     serializeError,
     extend,
-    timedPromise
+    timedPromise,
+    emptyTransport
 } = require('./utils');
 const {
     parseQualifier,
@@ -48,7 +49,8 @@ function Carotte(config) {
         autoDescribe: false,
         retryOnError() {
             return process.env.NODE_ENV === 'production';
-        }
+        },
+        transport: emptyTransport
     }, config);
 
     config.connexion = Object.assign({
@@ -118,11 +120,13 @@ function Carotte(config) {
                 initDebug('channel created correctly');
                 channel = chan;
                 chan.on('close', (err) => {
+                    config.transport.error(`[${config.serviceName}]`, err);
                     channel = null;
                     carotte.cleanExchangeCache();
                 });
                 // this allow chan to throw on errors
                 chan.once('error', (err) => {
+                    config.transport.error(`[${config.serviceName}]`, err);
                     channel = null;
                 });
 
@@ -131,7 +135,6 @@ function Carotte(config) {
                         .then(q => chan.bindQueue(q.queue, 'amq.direct', q.queue))
                         .then(() => chan);
                 }
-
                 return chan;
             })
             .catch((err) => {
@@ -233,6 +236,9 @@ function Carotte(config) {
 
                 return ok.then(() => {
                     producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
+                    config.transport.info(`[${config.serviceName}] > [${qualifier}]`,
+                        options.context, payload);
+
                     return chan.publish(
                         exchangeName,
                         options.routingKey,
@@ -247,6 +253,7 @@ function Carotte(config) {
                 });
             })
             .catch(err => {
+                config.transport.error(`[${config.serviceName}]`, options.context, err);
                 if (err.message.match(errorToRetryRegex)) {
                     return this.publish(qualifier, options, payload);
                 }
@@ -390,6 +397,9 @@ function Carotte(config) {
                         const content = JSON.parse(message.content.toString());
                         const { data, context } = content;
                         const startTime = new Date().getTime();
+
+                        config.transport.info(`[${config.serviceName}] < ${headers['x-origin-service']}`,
+                            context, content);
 
                         // execute the handler inside a try catch block
                         return execInPromise(handler, { data, headers, context })
