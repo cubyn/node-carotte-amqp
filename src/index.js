@@ -12,7 +12,8 @@ const {
     identity,
     deserializeError,
     serializeError,
-    extend
+    extend,
+    timedPromise
 } = require('./utils');
 const {
     parseQualifier,
@@ -24,7 +25,6 @@ const {
 
 const puid = new Puid();
 const initDebug = debug('carotte:init');
-const connexionsDebug = debug('carotte:connexions');
 const consumerDebug = debug('carotte:consumer');
 const producerDebug = debug('carotte:producer');
 
@@ -45,23 +45,58 @@ function Carotte(config) {
         enableBouillon: false,
         deadLetterQualifier: 'dead-letter',
         enableDeadLetter: false,
-        autoDescribe: false
+        autoDescribe: false,
+        retryOnError() {
+            return process.env.NODE_ENV === 'production';
+        }
     }, config);
 
     const carotte = {};
 
-    const connexion = amqp.connect(`amqp://${config.host}`, {
-        clientProperties: {
-            'carotte-version': carottePackage.version,
-            'carotte-host-name': pkg.name,
-            'carotte-host-version': pkg.version
-        }
-    });
-    const exchangeCache = {};
+    let exchangeCache = {};
     const correlationIdCache = {};
 
     let replyToSubscription;
+    let connexion;
     let channel;
+
+    carotte.getConnection = function getConnection() {
+        if (connexion) {
+            return Promise.resolve(connexion);
+        }
+
+        connexion = amqp.connect(`amqp://${config.host}`, {
+            clientProperties: {
+                'carotte-version': carottePackage.version,
+                'carotte-host-name': pkg.name,
+                'carotte-host-version': pkg.version
+            }
+        }).then(conn => {
+            conn.on('close', (err) => {
+                connexion = null;
+                channel = null;
+                carotte.cleanExchangeCache();
+            });
+            conn.once('error', (err) => {
+                connexion = null;
+                channel = null;
+            });
+
+            return conn;
+        })
+        .catch((err) => {
+            connexion = null;
+
+            if (config.retryOnError(err)) {
+                return timedPromise(1000)
+                    .then(carotte.getConnection);
+            }
+
+            throw err;
+        });
+
+        return connexion;
+    };
 
     /**
      * Create or get a channel in cache
@@ -72,19 +107,31 @@ function Carotte(config) {
             return Promise.resolve(channel);
         }
 
-        channel = connexion
+        channel = carotte.getConnection()
             .then(conn => conn.createChannel())
             .then(chan => {
                 initDebug('channel created correctly');
                 channel = chan;
                 chan.on('close', (err) => {
-                    connexionsDebug('channel closed trying to reopen');
-                    this.cleanExchangeCache();
                     channel = null;
+                    carotte.cleanExchangeCache();
                 });
                 // this allow chan to throw on errors
-                chan.once('error', () => {});
+                chan.once('error', (err) => {
+                    channel = null;
+                });
+
                 return chan;
+            })
+            .catch((err) => {
+                channel = null;
+
+                if (config.retryOnError(err)) {
+                    return timedPromise(1000)
+                        .then(carotte.getChannel);
+                }
+
+                throw err;
             });
 
         return channel;
@@ -94,7 +141,7 @@ function Carotte(config) {
      * delete all exchange from cache
      */
     carotte.cleanExchangeCache = function cleanExchangeCache() {
-        Object.keys(exchangeCache).forEach(key => (exchangeCache[key] = undefined));
+        exchangeCache = {};
     };
 
     /**

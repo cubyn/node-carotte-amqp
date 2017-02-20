@@ -19,6 +19,12 @@ function identity(x) {
     return () => x;
 }
 
+function timedPromise(ms) {
+    return new Promise(resolve => {
+        setInterval(resolve, ms);
+    });
+}
+
 function execInPromise(func, ...params) {
     return new Promise((resolve, reject) => {
         try {
@@ -89,5 +95,6 @@ module.exports = {
     identity,
     serializeError,
     deserializeError,
-    extend
+    extend,
+    timedPromise
 };
