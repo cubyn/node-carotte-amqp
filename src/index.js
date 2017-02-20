@@ -471,7 +471,7 @@ function computeNextCall(headers) {
 
     switch (strategy) {
         case 'exponential': {
-            // eslint-disable-next-line
+            // eslint-disable-next-line no-restricted-properties
             return Math.pow(2, current - 1) * interval;
         }
         case 'direct':
