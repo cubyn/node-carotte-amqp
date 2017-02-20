@@ -109,7 +109,7 @@ carotte.parallel('fanout', { firstname: 'Gabe' }, (err, { data }) => {
 ```
 
 ## Automatic description
-In your microservice architecture, you sometimes want to implement automatic discovery and get a service check for one of your functions. This is done using the `meta` parameter in your `subscribe` functions:
+In your microservice architecture, you sometimes want to implement automatic discovery and get a service check for one of your functions or get some metrics of a service. This is done using the `meta` parameter in your `subscribe` functions:
 
 ```js
 const carotte = require('carotte')({ autoDescribe: true });
