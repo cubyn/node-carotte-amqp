@@ -43,7 +43,7 @@ function Carotte(config) {
         serviceName: pkg.name,
         host: 'localhost:5672',
         enableBouillon: false,
-        deadLetter: 'dead-letter',
+        deadLetterQualifier: 'dead-letter',
         enableDeadLetter: false,
         autoDescribe: false
     }, config);
@@ -226,8 +226,16 @@ function Carotte(config) {
         return correlationPromise.promise;
     };
 
+
     /**
-     * TODO
+     * Launches a request and listen to multiple RPC callbacks. For each answer
+     * the callback parameter will be executed
+     * @param  {string}   qualifier The destination qualifier
+     * @param  {object}   [options]   Message options
+     * @param  {object}   [payload]   Message to be delivered
+     * @param  {Function} callback  Callback function to be executed for each
+     *                              received response: function(err, data);
+     * @return {string}             Parallel interval uid to be used with @clearParallel
      */
     carotte.parallel = function parallel(qualifier, options, payload, callback) {
         if (arguments.length === 3) {
@@ -253,7 +261,7 @@ function Carotte(config) {
 
     /**
      * Check if the response must be send back and send the response if needed
-     * @param {string} parallelId - The key to remove from cache
+     * @param {string} parallelId - The key to remove from cache, see @parallel
      */
     carotte.clearParallel = function clearParallel(parallelId) {
         delete correlationIdCache[parallelId];
@@ -376,7 +384,7 @@ function Carotte(config) {
      */
     carotte.saveDeadLetterIfNeeded = function saveDeadLetterIfNeeded(options, content) {
         if (config.enableDeadLetter) {
-            return this.publish(config.deadLetter, options, content);
+            return this.publish(config.deadLetterQualifier, options, content);
         }
         return Promise.resolve();
     };
