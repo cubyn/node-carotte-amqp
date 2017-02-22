@@ -70,11 +70,11 @@ describe('rpc', () => {
         });
 
         it('should be able to omit options parameter', (done) => {
-            carotte.subscribe('fanout/abcdef', { queue: { exclusive: true } }, ({ data }) => {
+            carotte.subscribe('fanout/abcdef', { exchangeName: 'test2', queue: { exclusive: true } }, ({ data }) => {
                 return { a: 2 };
             })
             .then(() => {
-                return carotte.parallel('fanout', { hello: 'world' }, (error, { data }) => {
+                return carotte.parallel('fanout', { exchangeName: 'test2', hello: 'world' }, {}, (error, { data }) => {
                     expect(data.a).to.be.eql(2);
                     done();
                 });
@@ -86,7 +86,7 @@ describe('rpc', () => {
                 throw new Error('nope');
             }, { retry: { max: 5 } })
             .then(() => {
-                return carotte.parallel('fanout', { exchangeName: 'errors' }, { hello: 'world' }, (error) => {
+                return carotte.parallel('fanout', { durable: false, exchangeName: 'errors' }, { hello: 'world' }, (error) => {
                     expect(error.message).to.be.eql('nope');
                     done();
                 });
