@@ -393,6 +393,9 @@ function Carotte(config) {
                             const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
                             const pubOptions = messageToOptions(qualifier, message);
 
+                            // if custom error thrown, we want to forward it to producer
+                            if (err.status) retry = false;
+
                             if (retry && retry.max > 0 && currentRetry <= retry.max) {
                                 consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
                                 const rePublishOptions = incrementRetryHeaders(pubOptions, retry);
