@@ -44,7 +44,7 @@ function Carotte(config) {
         host: 'localhost:5672',
         enableBouillon: false,
         deadLetterQualifier: 'dead-letter',
-        enableDeadLetter: false,
+        enableDeadLetter: true,
         autoDescribe: false,
         retryOnError() {
             return process.env.NODE_ENV === 'production';
@@ -388,9 +388,9 @@ function Carotte(config) {
                             return chan.ack(message);
                         })
                         .catch(err => {
-                            const retry = meta.retry || { max: Infinity };
-                            const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
+                            let retry = meta.retry || { max: 50 };
 
+                            const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
                             const pubOptions = messageToOptions(qualifier, message);
 
                             if (retry && retry.max > 0 && currentRetry <= retry.max) {
