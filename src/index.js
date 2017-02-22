@@ -44,7 +44,7 @@ function Carotte(config) {
         host: 'localhost:5672',
         enableBouillon: false,
         deadLetterQualifier: 'dead-letter',
-        enableDeadLetter: false,
+        enableDeadLetter: true,
         autoDescribe: false,
         retryOnError() {
             return process.env.NODE_ENV === 'production';
@@ -121,6 +121,12 @@ function Carotte(config) {
                     channel = null;
                 });
 
+                if (config.enableDeadLetter) {
+                    return chan.assertQueue(config.deadLetterQualifier)
+                        .then(q => chan.bindQueue(q.queue, 'amq.direct', q.queue))
+                        .then(() => chan);
+                }
+
                 return chan;
             })
             .catch((err) => {
@@ -151,7 +157,7 @@ function Carotte(config) {
      */
     carotte.getRpcQueue = function getRpcQueue() {
         if (!replyToSubscription) {
-            replyToSubscription = this.subscribe('', { queue: { exclusive: true } }, ({ data, headers }) => {
+            replyToSubscription = this.subscribe('', { queue: { exclusive: true, durable: false } }, ({ data, headers }) => {
                 const isError = headers['x-error'];
                 const correlationId = headers['x-correlation-id'];
 
@@ -356,7 +362,9 @@ function Carotte(config) {
         return this.getChannel()
             .then(ch => (chan = ch))
             // create the exchange.
-            .then(ch => chan.assertExchange(exchangeName, options.type, options.exchange))
+            .then(ch => chan.assertExchange(exchangeName, options.type, {
+                durable: options.durable
+            }))
             // create the queue for this exchange.
             .then(() => chan.assertQueue(queueName, options.queue))
             .then(q => {
@@ -371,6 +379,9 @@ function Carotte(config) {
                     return chan.consume(q.queue, message => {
                         consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
                         const { headers } = message.properties;
+
+                        headers['x-origin-consumer'] = qualifier;
+
                         const content = JSON.parse(message.content.toString());
                         const { data, context } = content;
                         const startTime = new Date().getTime();
@@ -388,10 +399,13 @@ function Carotte(config) {
                             return chan.ack(message);
                         })
                         .catch(err => {
-                            const retry = meta.retry || { max: Infinity };
-                            const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
+                            let retry = meta.retry || { max: 50 };
 
+                            const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
                             const pubOptions = messageToOptions(qualifier, message);
+
+                            // if custom error thrown, we want to forward it to producer
+                            if (err.status) retry = false;
 
                             if (retry && retry.max > 0 && currentRetry <= retry.max) {
                                 consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
@@ -400,21 +414,23 @@ function Carotte(config) {
 
                                 setTimeout(() => {
                                     this.publish(qualifier, rePublishOptions, message.content)
-                                        .then(() => chan.ack(message));
+                                        .then(() => chan.ack(message))
+                                        .catch(() => chan.nack(message));
                                 }, nextCallDelay);
                             } else {
                                 consumerDebug(`Handler error: ${err.message}`);
                                 delete pubOptions.exchange;
 
                                 // publish the message to the dead-letter queue
-                                this.saveDeadLetterIfNeeded(pubOptions, message.content)
+                                this.saveDeadLetterIfNeeded(pubOptions, message)
                                     .then(() => {
                                         message.properties.headers = cleanRetryHeaders(
                                                 message.properties.headers
                                                 );
                                         return this.replyToPublisher(message, err, true);
                                     })
-                                .then(() => chan.ack(message));
+                                .then(() => chan.ack(message))
+                                .catch(() => chan.nack(message));
                             }
                         });
                     })
@@ -429,9 +445,11 @@ function Carotte(config) {
      * @param {object} content - content for dead letter
      * @return {promise}
      */
-    carotte.saveDeadLetterIfNeeded = function saveDeadLetterIfNeeded(options, content) {
+    carotte.saveDeadLetterIfNeeded = function saveDeadLetterIfNeeded(options, message) {
         if (config.enableDeadLetter) {
-            return this.publish(config.deadLetterQualifier, options, content);
+            return carotte.publish(config.deadLetterQualifier,
+                { headers: message.properties.headers },
+                message.content);
         }
         return Promise.resolve();
     };
@@ -448,7 +466,7 @@ function Carotte(config) {
 
         if ('x-reply-to' in headers) {
             const correlationId = headers['x-correlation-id'];
-            consumerDebug(`reply to ${correlationId} on queue ${headers['x-correlation-id']}`);
+            consumerDebug(`reply to ${correlationId} on queue direct/${headers['x-reply-to']}`);
             const newHeaders = { 'x-correlation-id': correlationId };
 
             // if isError we must add a tag for the subscriber to be able to handle it
