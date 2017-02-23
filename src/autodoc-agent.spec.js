@@ -1,14 +1,14 @@
 const expect = require('chai').expect;
-const bouillonAgent = require('./bouillon-agent');
+const autodocAgent = require('./autodoc-agent');
 
 
-describe('bouillon agent spec', () => {
+describe('autodoc agent spec', () => {
     describe('addSubscriber', () => {
         it('should append default properties to subscriber object', () => {
-            expect(bouillonAgent.getSubscriber('toto')).to.be.undefined;
-            bouillonAgent.addSubscriber('toto', {});
+            expect(autodocAgent.getSubscriber('toto')).to.be.undefined;
+            autodocAgent.addSubscriber('toto', {});
 
-            const subscriber = bouillonAgent.getSubscriber('toto');
+            const subscriber = autodocAgent.getSubscriber('toto');
 
             expect(subscriber.qualifier).to.be.eql('toto');
             expect(subscriber.performances).to.be.defined;
@@ -26,10 +26,10 @@ describe('bouillon agent spec', () => {
 
     describe('getSubscriber', () => {
         it('should return a stored subscriber object', () => {
-            expect(bouillonAgent.getSubscriber('tata')).to.be.undefined;
-            bouillonAgent.addSubscriber('tata', {});
+            expect(autodocAgent.getSubscriber('tata')).to.be.undefined;
+            autodocAgent.addSubscriber('tata', {});
 
-            const subscriber = bouillonAgent.getSubscriber('tata');
+            const subscriber = autodocAgent.getSubscriber('tata');
 
             expect(subscriber.qualifier).to.be.eql('tata');
         });
@@ -37,18 +37,18 @@ describe('bouillon agent spec', () => {
 
     describe('logStats', () => {
         it('should do nothing if no service is present in subscriber list', () => {
-            bouillonAgent.logStats('titi', 1, 'caller');
+            autodocAgent.logStats('titi', 1, 'caller');
 
-            const subscriber = bouillonAgent.getSubscriber('titi');
+            const subscriber = autodocAgent.getSubscriber('titi');
             expect(subscriber).to.be.undefined;
         });
 
         it('should update stats for a subscriber when called', () => {
-            bouillonAgent.addSubscriber('logStats-test', {});
-            bouillonAgent.logStats('logStats-test', 1, 'caller');
+            autodocAgent.addSubscriber('logStats-test', {});
+            autodocAgent.logStats('logStats-test', 1, 'caller');
 
 
-            const subscriber = bouillonAgent.getSubscriber('logStats-test');
+            const subscriber = autodocAgent.getSubscriber('logStats-test');
 
             expect(subscriber.performances.duration.sum).to.be.eql(1);
             expect(subscriber.receivedCount).to.be.eql(1);
@@ -58,14 +58,14 @@ describe('bouillon agent spec', () => {
         });
 
         it('should update the min/max execution time', () => {
-            bouillonAgent.addSubscriber('logStats-test-2', {});
-            bouillonAgent.logStats('logStats-test-2', 5, 'caller');
-            bouillonAgent.logStats('logStats-test-2', 3, 'caller');
-            bouillonAgent.logStats('logStats-test-2', 2, 'caller');
-            bouillonAgent.logStats('logStats-test-2', 1, 'caller');
-            bouillonAgent.logStats('logStats-test-2', 3, 'caller');
+            autodocAgent.addSubscriber('logStats-test-2', {});
+            autodocAgent.logStats('logStats-test-2', 5, 'caller');
+            autodocAgent.logStats('logStats-test-2', 3, 'caller');
+            autodocAgent.logStats('logStats-test-2', 2, 'caller');
+            autodocAgent.logStats('logStats-test-2', 1, 'caller');
+            autodocAgent.logStats('logStats-test-2', 3, 'caller');
 
-            const subscriber = bouillonAgent.getSubscriber('logStats-test-2');
+            const subscriber = autodocAgent.getSubscriber('logStats-test-2');
 
             expect(subscriber.performances.duration.min).to.be.eql(1);
             expect(subscriber.performances.duration.max).to.be.eql(5);
