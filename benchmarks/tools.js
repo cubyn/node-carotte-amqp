@@ -20,10 +20,10 @@ function recordStats() {
 const startTime = Date.now();
 function printStats() {
     console.log('################MEMORY#####################');
-    console.log(`# Average memory: ${stats.MEM_AVG/1000000} MB`);
-    console.log(`# MAX memory: ${stats.MEM_MAX/1000000} MB`);
-    console.log(`# MIN memory: ${stats.MEM_MIN/1000000} MB`);
-    console.log(`# END memory: ${process.memoryUsage().heapUsed/1000000} MB`);
+    console.log(`# Average memory: ${stats.MEM_AVG/1048576} MB`);
+    console.log(`# MAX memory: ${stats.MEM_MAX/1048576} MB`);
+    console.log(`# MIN memory: ${stats.MEM_MIN/1048576} MB`);
+    console.log(`# END memory: ${process.memoryUsage().heapUsed/1048576} MB`);
     console.log('################MEMORY#####################');
     console.log(`Execution time: ${(Date.now()-startTime)/1000} sec.`);
 }
