@@ -1,7 +1,7 @@
 const debug = require('debug');
 const Puid = require('puid');
 const amqp = require('amqplib');
-const bouillonAgent = require('./bouillon-agent');
+const autodocAgent = require('./autodoc-agent');
 const describe = require('./describe');
 const carottePackage = require('../package');
 
@@ -42,7 +42,7 @@ function Carotte(config) {
     config = Object.assign({
         serviceName: pkg.name,
         host: 'localhost:5672',
-        enableBouillon: false,
+        enableAutodoc: false,
         deadLetterQualifier: 'dead-letter',
         enableDeadLetter: true,
         autoDescribe: false,
@@ -339,7 +339,7 @@ function Carotte(config) {
         }
 
         if (meta) {
-            bouillonAgent.addSubscriber(qualifier, meta);
+            autodocAgent.addSubscriber(qualifier, meta);
             if (config.autoDescribe) {
                 describe.subscribeToDescribe(this, qualifier, meta);
             }
@@ -390,7 +390,7 @@ function Carotte(config) {
                         return execInPromise(handler, { data, headers, context })
                             .then(res => {
                                 const timeNow = new Date().getTime();
-                                bouillonAgent.logStats(qualifier, timeNow - startTime, headers['x-origin-service']);
+                                autodocAgent.logStats(qualifier, timeNow - startTime, headers['x-origin-service']);
                                 // send back response if needed
                                 return this.replyToPublisher(message, res);
                             })
@@ -483,8 +483,8 @@ function Carotte(config) {
         return Promise.resolve();
     };
 
-    if (config.enableBouillon) {
-        bouillonAgent.ensureBouillonAgent(carotte);
+    if (config.enableAutodoc) {
+        autodocAgent.ensureAutodocAgent(carotte);
     }
 
     return carotte;

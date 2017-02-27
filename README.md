@@ -1,7 +1,7 @@
-# carotte
+# carotte-amqp
 A tiny [amqp.node](https://github.com/squaremo/amqp.node) wrapper to be used when you don't want to deal with the low-level RabbitMQ handling.
 
-It is part of a lightweight microservice framework that we are cooking here at Cubyn. carotte requires **node.js >= 6**
+It is part of a lightweight microservice framework that we are cooking here at Cubyn. carotte-amqp requires **node.js >= 6**
 
 **Features**:
   - Built-in RPC (single and multiple answers)
@@ -11,22 +11,22 @@ It is part of a lightweight microservice framework that we are cooking here at C
   - Tiny (depends on amqplib, debug, and puid)
 
 **Compatible with**:
-  - Auto-documentation of your microservices with [bouillon](https://github.com/cubyn/bouillon)
+  - Auto-documentation of your microservices with [carotte-dashboard](https://github.com/cubyn/carotte-dashboard)
   - A [cli](https://github.com/cubyn/carotte-cli) to easily call your services from the shell
   - A [mixer](https://github.com/cubyn/carotte-mixer) to uniformize your microservices structure
 
 ## Sample usage
 
-Only basic usage is covered here, you can browse the [https://github.com/cubyn/carotte/tree/master/examples](examples folder) on the repo for more use-cases.
+Only basic usage is covered here, you can browse the [https://github.com/cubyn/node-carotte-amqp/tree/master/examples](examples folder) on the repo for more use-cases.
 
 ### Module configuration
 
 Here is a basic sample configuration using default interval values for reference (each one is optional):
 ```js
-const carotte = require('carotte')({
+const carotte = require('carotte-amqp')({
     serviceName: require('package.json').name, // your service name
     host: 'localhost:5672', // amqp host name
-    enableBouillon: false, // answer to bouillon fanout requests
+    enableAutodoc: false, // answer to autodocumentation fanout requests
     enableDeadLetter: false, // should failing messages be put in dead-letter?
     deadLetterQualifier: 'direct/dead-letter', // dead-lettered messages will be sent here
     autoDescribe: false // provide a :describe queue for your function
@@ -112,7 +112,7 @@ carotte.parallel('fanout', { firstname: 'Gabe' }, (err, { data }) => {
 In your microservice architecture, you sometimes want to implement automatic discovery and get a service check for one of your functions or get some metrics of a service. This is done using the `meta` parameter in your `subscribe` functions:
 
 ```js
-const carotte = require('carotte')({ autoDescribe: true });
+const carotte = require('carotte-amqp')({ autoDescribe: true });
 
 carotte.subscribe('direct/increment', ({ data } => {
     return data + 1;
@@ -133,4 +133,4 @@ carotte.invoke('direct/increment:describe')
     });
 ```
 
-This structure is also used in [bouillon](https://github.com/cubyn/bouillon) to auto-document your microservices architecture. You can find more information about how it works on the bouillon repository.
+This structure is also used in [carotte-dashboard](https://github.com/cubyn/carotte-dashboard) to auto-document your microservices architecture. You can find more information about how it works on the dashboard repository.
