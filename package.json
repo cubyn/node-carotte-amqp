@@ -1,7 +1,7 @@
 {
-  "name": "carotte",
+  "name": "carotte-amqp",
   "version": "0.0.1",
-  "description": "Carotte for a better world",
+  "description": "AMQP wrapper for the carotte microservice framework",
   "main": "src/index.js",
   "repository": "https://github.com/cubyn/carotte",
   "author": "nbeydoon <nori@cubyn.com>",
@@ -21,6 +21,7 @@
     "eslint": "^3.15.0",
     "eslint-config-cubyn": "^1.0.12",
     "istanbul": "^0.4.5",
-    "mocha": "^3.2.0"
+    "mocha": "^3.2.0",
+    "progress": "^1.1.8"
   }
 }

@@ -14,7 +14,7 @@ describe('configs', () => {
             const packageInfos = configs.getPackageJson();
             expect(typeof packageInfos).to.be.eql('object');
             expect(packageInfos.name).to.be.defined;
-            expect(packageInfos.name).to.be.eql('carotte');
+            expect(packageInfos.name).to.be.eql('carotte-amqp');
         });
 
         it('should return an empty object when no package.json is found', () => {

@@ -98,15 +98,15 @@ function logStats(qualifier, duration, caller) {
 }
 
 /**
- * Enable the bouillon agent and register the listener fanout queue
+ * Enable the autodoc agent and register the listener fanout queue
  * It will answer to all fanout messages using the responseHandler defined in this file
  * @param  {object} carotte A carotte instance
- * @return {Promise}        Resolves when bouillon listening queue is correctly registered
+ * @return {Promise}        Resolves when autodocumentation listening queue is correctly registered
  */
-function ensureBouillonAgent(carotte) {
-    // create a fanout subscriber to receive bouillon requests
+function ensureAutodocAgent(carotte) {
+    // create a fanout subscriber to receive autodoc requests
     return carotte.subscribe('fanout', {
-        exchangeName: 'bouillon.fanout',
+        exchangeName: 'carotte.fanout',
         queue: { durable: false, exclusive: true }
     }, ({ data }) => {
         const serviceData = responseHandler[data.origin][data.type]();
@@ -125,5 +125,5 @@ module.exports = {
     addSubscriber,
     getSubscriber,
     logStats,
-    ensureBouillonAgent
+    ensureAutodocAgent
 };
