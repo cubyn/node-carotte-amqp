@@ -21,6 +21,7 @@
     "eslint": "^3.15.0",
     "eslint-config-cubyn": "^1.0.12",
     "istanbul": "^0.4.5",
-    "mocha": "^3.2.0"
+    "mocha": "^3.2.0",
+    "progress": "^1.1.8"
   }
 }
