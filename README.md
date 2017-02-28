@@ -16,7 +16,7 @@ It is part of a lightweight microservice framework that we are cooking here at C
 **Compatible with**:
   - Auto-documentation of your microservices with [carotte-dashboard](https://github.com/cubyn/carotte-dashboard)
   - A [cli](https://github.com/cubyn/carotte-cli) to easily call your services from the shell
-  - A [mixer](https://github.com/cubyn/carotte-mixer) to uniformize your microservices structure
+  - A [loader](https://github.com/cubyn/node-carotte-loader) to uniformize your microservices structure
 
 ## Sample usage
 
