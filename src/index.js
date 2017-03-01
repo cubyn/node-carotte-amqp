@@ -51,6 +51,17 @@ function Carotte(config) {
         }
     }, config);
 
+    config.connexion = Object.assign({
+        noDelay: true,
+        clientProperties: {}
+    }, config.connexion);
+
+    config.connexion.clientProperties = Object.assign(config.connexion.clientProperties, {
+        'carotte-version': carottePackage.version,
+        'carotte-host-name': pkg.name,
+        'carotte-host-version': pkg.version
+    });
+
     const carotte = {};
 
     let exchangeCache = {};
@@ -65,13 +76,7 @@ function Carotte(config) {
             return Promise.resolve(connexion);
         }
 
-        connexion = amqp.connect(`amqp://${config.host}`, {
-            clientProperties: {
-                'carotte-version': carottePackage.version,
-                'carotte-host-name': pkg.name,
-                'carotte-host-version': pkg.version
-            }
-        }).then(conn => {
+        connexion = amqp.connect(`amqp://${config.host}`, config.connexion).then(conn => {
             conn.on('close', (err) => {
                 connexion = null;
                 channel = null;
