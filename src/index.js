@@ -403,45 +403,59 @@ function Carotte(config) {
                             consumerDebug('Handler success');
                             return chan.ack(message);
                         })
-                        .catch(err => {
-                            let retry = meta.retry || { max: 50 };
-
-                            const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
-                            const pubOptions = messageToOptions(qualifier, message);
-
-                            // if custom error thrown, we want to forward it to producer
-                            if (err.status) retry = false;
-
-                            if (retry && retry.max > 0 && currentRetry <= retry.max) {
-                                consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
-                                const rePublishOptions = incrementRetryHeaders(pubOptions, retry);
-                                const nextCallDelay = computeNextCall(pubOptions);
-
-                                setTimeout(() => {
-                                    this.publish(qualifier, rePublishOptions, message.content)
-                                        .then(() => chan.ack(message))
-                                        .catch(() => chan.nack(message));
-                                }, nextCallDelay);
-                            } else {
-                                consumerDebug(`Handler error: ${err.message}`);
-                                delete pubOptions.exchange;
-
-                                // publish the message to the dead-letter queue
-                                this.saveDeadLetterIfNeeded(pubOptions, message)
-                                    .then(() => {
-                                        message.properties.headers = cleanRetryHeaders(
-                                                message.properties.headers
-                                                );
-                                        return this.replyToPublisher(message, err, true);
-                                    })
-                                .then(() => chan.ack(message))
-                                .catch(() => chan.nack(message));
-                            }
-                        });
+                        .catch(this.handleRetry(qualifier, meta, headers, message).bind(this));
                     })
                     .then(identity(q));
                 });
             });
+    };
+
+    /**
+     * Handle the retry when the subscriber handler fail
+     * @param {object} qualifier - the qualifier of the subscriber
+     * @param {object} meta      - the meta of the subscriber
+     * @param {object} headers   - the headers handled by the subscriber
+     * @param {object} message   - the message to republish
+     */
+    carotte.handleRetry = function handleRetry(qualifier, meta, headers, message) {
+        return err => {
+            return this.getChannel()
+            .then(chan => {
+                let retry = meta.retry || { max: 50 };
+
+                const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
+                const pubOptions = messageToOptions(qualifier, message);
+
+                // if custom error thrown, we want to forward it to producer
+                if (err.status) retry = false;
+
+                if (retry && retry.max > 0 && currentRetry <= retry.max) {
+                    consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
+                    const rePublishOptions = incrementRetryHeaders(pubOptions, retry);
+                    const nextCallDelay = computeNextCall(pubOptions);
+
+                    setTimeout(() => {
+                        this.publish(qualifier, rePublishOptions, message.content)
+                            .then(() => chan.ack(message))
+                            .catch(() => chan.nack(message));
+                    }, nextCallDelay);
+                } else {
+                    consumerDebug(`Handler error: ${err.message}`);
+                    delete pubOptions.exchange;
+
+                    // publish the message to the dead-letter queue
+                    this.saveDeadLetterIfNeeded(pubOptions, message)
+                        .then(() => {
+                            message.properties.headers = cleanRetryHeaders(
+                                message.properties.headers
+                            );
+                            return this.replyToPublisher(message, err, true);
+                        })
+                    .then(() => chan.ack(message))
+                        .catch(() => chan.nack(message));
+                }
+            });
+        };
     };
 
     /**
