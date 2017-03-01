@@ -1,12 +1,14 @@
-const config = require('./configs');
+const { getPackageJson } = require('./configs');
 
-const serviceName = config.getPackageJson().name;
-const maintainers = config.getPackageJson().maintainers;
+const { name: serviceName, maintainers } = getPackageJson();
 const EPOCH = new Date(0);
 
 const responseHandler = {
     master: {
         all: getAll
+    },
+    gateway: {
+        controller: getControllers
     }
 };
 
@@ -22,6 +24,28 @@ function getAll() {
         hostname: process.env.HOSTNAME || 'local',
         maintainers,
         subscribers
+    };
+}
+
+/**
+ * Get only controller subscribers
+ * @return {object} Object containing service data and maintainers/subscribers
+ */
+function getControllers() {
+    const controllerSubscribers = {};
+
+    Object.keys(subscribers).forEach(qualifier => {
+        // TODO QUESTION ?! see line bellow
+        if (qualifier.includes('controller.')) {
+            controllerSubscribers[qualifier] = subscribers[qualifier];
+        }
+    });
+
+    return {
+        name: serviceName,
+        hostname: process.env.HOSTNAME || 'local',
+        maintainers,
+        subscribers: controllerSubscribers
     };
 }
 
@@ -72,6 +96,7 @@ function getSubscriber(qualifier) {
  */
 function logStats(qualifier, duration, caller) {
     const subscriber = subscribers[qualifier];
+
     if (subscriber) {
         if (subscriber.receivedCount === 0) {
             subscriber.firstReceivedAt = new Date();
@@ -108,13 +133,15 @@ function ensureAutodocAgent(carotte) {
     return carotte.subscribe('fanout', {
         exchangeName: 'carotte.fanout',
         queue: { durable: false, exclusive: true }
-    }, ({ data }) => {
-        const serviceData = responseHandler[data.origin][data.type]();
+    }, ({ data: { origin, type } }) => {
+        const serviceData = responseHandler[origin][type]();
         const response = JSON.parse(JSON.stringify(serviceData));
 
-        // reset all stats until next broadcast
-        for (const subscriber in serviceData.subscribers) {
-            addSubscriber(subscriber, serviceData.subscribers[subscriber]);
+        if (origin === 'master') {
+            // reset all stats until next broadcast
+            for (const subscriber in serviceData.subscribers) {
+                addSubscriber(subscriber, serviceData.subscribers[subscriber]);
+            }
         }
 
         return response;

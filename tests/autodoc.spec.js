@@ -31,4 +31,32 @@ describe('autodoc', () => {
                 expect(data.subscribers['carotte.hello'].responseSchema.foo).to.be.eql('bar');
             });
     });
+
+    it('Should only list subscribers who are controllers', () => {
+        carotte.subscribe('controller.hello', { queue: { exclusive: true } }, () => { }, {
+            requestSchema: {
+                hello: 'world'
+            },
+            responseSchema: {
+                foo: 'bar'
+            }
+        });
+
+        carotte.subscribe('kwontwoller.hello', { queue: { exclusive: true } }, () => { }, {
+            requestSchema: {
+                hello: 'world'
+            },
+            responseSchema: {
+                foo: 'bar'
+            }
+        });
+
+        return carotte.invoke('fanout', { exchangeName: 'carotte.fanout' }, { origin: 'gateway', type: 'controller' })
+            .then(({ data }) => {
+                expect(data).to.be.defined;
+                expect(data.subscribers).to.be.defined;
+                expect(data.subscribers['controller.hello']).to.be.defined;
+                expect(data.subscribers['kwontwoller.hello']).to.be.undefined;
+            });
+    });
 });
