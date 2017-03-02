@@ -2,6 +2,10 @@
 
 [![npm version](https://badge.fury.io/js/carotte-amqp.svg)](https://badge.fury.io/js/carotte-amqp)
 
+```
+npm install carotte-amqp
+```
+
 A tiny [amqp.node](https://github.com/squaremo/amqp.node) wrapper to be used when you don't want to deal with the low-level RabbitMQ handling.
 
 It is part of a lightweight microservice framework that we are cooking here at Cubyn. carotte-amqp requires **node.js >= 6**
