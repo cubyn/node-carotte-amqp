@@ -71,7 +71,7 @@ function Carotte(config) {
 
     let replyToSubscription;
     let connexion;
-    let channel;
+    let channels = {};
 
     carotte.getConnection = function getConnection() {
         if (connexion) {
@@ -82,13 +82,13 @@ function Carotte(config) {
             conn.on('close', error => {
                 config.transport.error({ error });
                 connexion = null;
-                channel = null;
+                channels = {};
                 carotte.cleanExchangeCache();
             });
             conn.once('error', error => {
                 config.transport.error({ error });
                 connexion = null;
-                channel = null;
+                channels = {};
             });
 
             return conn;
@@ -109,15 +109,20 @@ function Carotte(config) {
 
     /**
      * Create or get a channel in cache
+     * @param {string} [name] The qualifier name of the channel, if prefetch is 0 this is not used
+     * @param {number} [prefetch] The channel prefetch settings
      * @return {promise} return the channel created
      */
-    carotte.getChannel = function getChannel() {
-        if (channel) {
-            return Promise.resolve(channel);
+    carotte.getChannel = function getChannel(name = '', prefetch = 0) {
+        const channelKey = (prefetch > 0) ? `${name}:${prefetch}` : 0;
+
+        if (channels[channelKey]) {
+            return Promise.resolve(channels[channelKey]);
         }
 
-        channel = carotte.getConnection()
+        channels[channelKey] = carotte.getConnection()
             .then(conn => conn.createChannel())
+            .then(chan => { chan.prefetch(prefetch, true); return chan; })
             .then(chan => {
                 initDebug('channel created correctly');
                 channel = chan;
@@ -140,17 +145,17 @@ function Carotte(config) {
                 return chan;
             })
             .catch((err) => {
-                channel = null;
+                channels[channelKey] = undefined;
 
                 if (config.retryOnError(err)) {
                     return timedPromise(1000)
-                        .then(carotte.getChannel);
+                        .then(() => carotte.getChannel(name, prefetch));
                 }
 
                 throw err;
             });
 
-        return channel;
+        return channels[channelKey];
     };
 
     /**
@@ -387,7 +392,7 @@ function Carotte(config) {
         const queueName = getQueueName(options, config);
 
         // once channel is ready
-        return this.getChannel()
+        return this.getChannel(qualifier, options.prefetch)
             .then(ch => (chan = ch))
             // create the exchange.
             .then(ch => chan.assertExchange(exchangeName, options.type, {
@@ -404,7 +409,8 @@ function Carotte(config) {
                 .then(() => {
                     consumerDebug(`${q.queue} binded on ${exchangeName} with ${bindedWith}`);
 
-                    return chan.consume(q.queue, message => {
+                    return chan.prefetch(options.prefetch)
+                    .then(() => chan.consume(q.queue, message => {
                         consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
                         const { headers } = message.properties;
 
@@ -446,7 +452,8 @@ function Carotte(config) {
                         })
                         .catch(this.handleRetry(qualifier, options, meta,
                             headers, context, message).bind(this));
-                    })
+                    }))
+                    .then(() => chan.prefetch(0))
                     .then(identity(q));
                 });
             });
@@ -462,7 +469,7 @@ function Carotte(config) {
     carotte.handleRetry =
     function handleRetry(qualifier, options, meta, headers, context, message) {
         return err => {
-            return this.getChannel()
+            return this.getChannel(qualifier, options.prefetch)
             .then(chan => {
                 let retry = meta.retry || { max: 50 };
 
