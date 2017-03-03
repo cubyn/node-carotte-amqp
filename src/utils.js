@@ -15,6 +15,8 @@ function createDeferred(timeout) {
     return deferred;
 }
 
+function noop() {}
+
 function identity(x) {
     return () => x;
 }
@@ -89,6 +91,15 @@ function serializeError(err) {
     return extend(extractedError, err);
 }
 
+const emptyTransport = {
+    log: noop,
+    info: noop,
+    // only disable error logs when tests are run
+    // eslint-disable-next-line no-console
+    error: (!process.env.LOADED_MOCHA_OPTS) ? /* istanbul ignore next */ console.error : noop,
+    warn: noop
+};
+
 module.exports = {
     createDeferred,
     execInPromise,
@@ -96,5 +107,6 @@ module.exports = {
     serializeError,
     deserializeError,
     extend,
-    timedPromise
+    timedPromise,
+    emptyTransport
 };

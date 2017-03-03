@@ -13,7 +13,8 @@ const {
     deserializeError,
     serializeError,
     extend,
-    timedPromise
+    timedPromise,
+    emptyTransport
 } = require('./utils');
 const {
     parseQualifier,
@@ -48,7 +49,8 @@ function Carotte(config) {
         autoDescribe: false,
         retryOnError() {
             return process.env.NODE_ENV === 'production';
-        }
+        },
+        transport: emptyTransport
     }, config);
 
     config.connexion = Object.assign({
@@ -77,12 +79,14 @@ function Carotte(config) {
         }
 
         connexion = amqp.connect(`amqp://${config.host}`, config.connexion).then(conn => {
-            conn.on('close', (err) => {
+            conn.on('close', error => {
+                config.transport.error({ error });
                 connexion = null;
                 channel = null;
                 carotte.cleanExchangeCache();
             });
-            conn.once('error', (err) => {
+            conn.once('error', error => {
+                config.transport.error({ error });
                 connexion = null;
                 channel = null;
             });
@@ -117,12 +121,14 @@ function Carotte(config) {
             .then(chan => {
                 initDebug('channel created correctly');
                 channel = chan;
-                chan.on('close', (err) => {
+                chan.on('close', error => {
+                    config.transport.error({ error });
                     channel = null;
                     carotte.cleanExchangeCache();
                 });
                 // this allow chan to throw on errors
-                chan.once('error', (err) => {
+                chan.once('error', error => {
+                    config.transport.error({ error });
                     channel = null;
                 });
 
@@ -131,7 +137,6 @@ function Carotte(config) {
                         .then(q => chan.bindQueue(q.queue, 'amq.direct', q.queue))
                         .then(() => chan);
                 }
-
                 return chan;
             })
             .catch((err) => {
@@ -206,7 +211,7 @@ function Carotte(config) {
             options = {};
         }
 
-        options = Object.assign({ headers: {} }, options, parseQualifier(qualifier));
+        options = Object.assign({ headers: {}, context: {} }, options, parseQualifier(qualifier));
 
         const exchangeName = getExchangeName(options);
 
@@ -233,6 +238,14 @@ function Carotte(config) {
 
                 return ok.then(() => {
                     producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
+                    config.transport.log({
+                        context: options.context,
+                        headers: options.headers,
+                        data: payload,
+                        subscriber: options.context['origin-consumer'] || '',
+                        destination: qualifier,
+                        rpc: options.headers['x-reply-to'] !== undefined
+                    });
                     return chan.publish(
                         exchangeName,
                         options.routingKey,
@@ -247,6 +260,16 @@ function Carotte(config) {
                 });
             })
             .catch(err => {
+                config.transport.error({
+                    context: options.context,
+                    headers: options.headers,
+                    data: payload,
+                    error: err,
+                    subscriber: options.context['origin-consumer'] || '',
+                    destination: qualifier,
+                    rpc: options.headers['x-reply-to'] !== undefined
+                });
+
                 if (err.message.match(errorToRetryRegex)) {
                     return this.publish(qualifier, options, payload);
                 }
@@ -385,11 +408,22 @@ function Carotte(config) {
                         consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
                         const { headers } = message.properties;
 
-                        headers['x-origin-consumer'] = qualifier;
-
                         const content = JSON.parse(message.content.toString());
                         const { data, context } = content;
                         const startTime = new Date().getTime();
+
+                        headers['x-origin-consumer'] = qualifier;
+                        context['origin-consumer'] = qualifier;
+
+                        config.transport.log({
+                            deliveryTag: message.fields.deliveryTag,
+                            context,
+                            headers,
+                            data,
+                            subscriber: qualifier,
+                            destination: '',
+                            rpc: headers['x-reply-to'] !== undefined
+                        });
 
                         // execute the handler inside a try catch block
                         return execInPromise(handler, { data, headers, context })
@@ -401,9 +435,17 @@ function Carotte(config) {
                             })
                         .then(() => {
                             consumerDebug('Handler success');
+
+                            config.transport.info({
+                                deliveryTag: message.fields.deliveryTag,
+                                context,
+                                executionMs: new Date().getTime() - startTime
+                            });
+
                             return chan.ack(message);
                         })
-                        .catch(this.handleRetry(qualifier, meta, headers, message).bind(this));
+                        .catch(this.handleRetry(qualifier, options, meta,
+                            headers, context, message).bind(this));
                     })
                     .then(identity(q));
                 });
@@ -417,7 +459,8 @@ function Carotte(config) {
      * @param {object} headers   - the headers handled by the subscriber
      * @param {object} message   - the message to republish
      */
-    carotte.handleRetry = function handleRetry(qualifier, meta, headers, message) {
+    carotte.handleRetry =
+    function handleRetry(qualifier, options, meta, headers, context, message) {
         return err => {
             return this.getChannel()
             .then(chan => {
@@ -428,6 +471,15 @@ function Carotte(config) {
 
                 // if custom error thrown, we want to forward it to producer
                 if (err.status) retry = false;
+
+                config.transport.error({
+                    context,
+                    headers,
+                    error: err,
+                    subscriber: qualifier,
+                    destination: '',
+                    rpc: headers['x-reply-to'] !== undefined
+                });
 
                 if (retry && retry.max > 0 && currentRetry <= retry.max) {
                     consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
