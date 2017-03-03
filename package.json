@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "description": "AMQP wrapper for the carotte microservice framework",
   "main": "src/index.js",
-  "repository": "https://github.com/cubyn/carotte",
+  "repository": "https://github.com/cubyn/node-carotte-amqp",
   "author": "nbeydoon <nori@cubyn.com>",
   "maintainers": ["nbeydoon <nori@cubyn.com>", "jonathan <jonathan@cubyn.com>"],
   "license": "GNU 3",
