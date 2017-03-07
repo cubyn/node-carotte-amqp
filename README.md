@@ -16,6 +16,8 @@ It is part of a lightweight microservice framework that we are cooking here at C
   - Compatible with direct/topic/fanout exchanges
   - Can aggregate statistics about your queues
   - Tiny (depends on amqplib, debug, and puid)
+  - Built-in [distributed tracing](http://microservices.io/patterns/observability/distributed-tracing.html), see doc
+  - Provide your own transport to log every microservice message
 
 **Compatible with**:
   - Auto-documentation of your microservices with [carotte-dashboard](https://github.com/cubyn/carotte-dashboard)
@@ -114,6 +116,39 @@ carotte.parallel('fanout', { firstname: 'Gabe' }, (err, { data }) => {
     }
 });
 ```
+
+## Custom transport
+To log every incoming and outgoing message, as well as execution time, you can provide your own custom transport to carotte-amqp
+```js
+const winston = require('winston');
+const carotte = require('carotte-amqp')({
+    transport: winston
+})
+```
+
+## Distributed tracing
+Propagating a context is easy with carotte-amqp, the lib will take care of it for you.
+```js
+carotte.subscribe('direct/second-route', ({ data, context }) => {
+    console.log(context.requestId); // prints the requestId
+    context.count++;
+});
+
+carotte.subscribe('direct/first-route', ({ data, context, invoke }) => {
+    context.requestId = randomString(10).toString('hex');
+    context.count = 0;
+    return invoke('direct/second-route', {});
+});
+
+carotte.invoke('direct/first-route', {})
+    .then(({ data, context }) => {
+        console.log(context.requestId); // prints the request ID
+        console.log(context.count); // prints 1
+    });
+```
+
+The context will be logged in every log of the wrapper, if you provide a custom transport.
+
 
 ## Automatic description
 In your microservice architecture, you sometimes want to implement automatic discovery and get a service check for one of your functions or get some metrics of a service. This is done using the `meta` parameter in your `subscribe` functions:
