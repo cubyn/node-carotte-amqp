@@ -199,7 +199,7 @@ function Carotte(config) {
                             deferred.reject(answer);
                             delete correlationIdCache[correlationId];
                         } else {
-                            deferred.callback(retrunObject.data, answer);
+                            deferred.callback(returnObject.data, answer);
                         }
                     } else if (deferred.resolve) {
                         deferred.resolve(answer);
