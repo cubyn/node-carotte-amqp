@@ -115,4 +115,29 @@ describe('rpc', () => {
             });
         });
     });
+
+    describe('distributed tracing', () => {
+        it('should propagate context between calls', () => {
+            return carotte.subscribe('direct/distributed-tracing-rpc', { queue: { exclusive: true } }, ({ context, invoke }) => {
+                context.hello = 1;
+                return invoke('direct/distributed-tracing-rpc-2')
+                    .then(({ data }) => data);
+            })
+            .then(() => {
+                return carotte.subscribe('direct/distributed-tracing-rpc-2', { queue: { exclusive: true } }, ({ context, invoke }) => {
+                    expect(context.hello).to.be.eql(1);
+                    context.hello++;
+                    return { a: 1 };
+                });
+            })
+            .then(() => {
+                return carotte.invoke('direct/distributed-tracing-rpc', {})
+                    .then(({ data, context }) => {
+                        expect(context.hello).to.be.eql(2);
+                        expect(data).to.be.defined;
+                        expect(data.a).to.be.eql(1);
+                    });
+            });
+        });
+    });
 });
