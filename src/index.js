@@ -185,24 +185,27 @@ function Carotte(config) {
 
                     Object.assign(deferred.context, context);
 
-                    if (isError && deferred.reject) {
-                        deferred.reject({
-                            data: deserializeError(data),
-                            headers,
-                            context: deferred.context
-                        });
-                        delete correlationIdCache[correlationId];
-                    } else if (isError) {
-                        deferred.callback(deserializeError(data), {
-                            data,
-                            headers,
-                            context: deferred.context
-                        });
+                    const returnObject = {
+                        headers,
+                        data: isError ? deserializeError(data) : data,
+                        context: deferred.context
+                    };
+
+                    const answer = deferred.options.completeAnswer ?
+                        returnObject : returnObject.data;
+
+                    if (isError) {
+                        if (deferred.reject) {
+                            deferred.reject(answer);
+                            delete correlationIdCache[correlationId];
+                        } else {
+                            deferred.callback(answer);
+                        }
                     } else if (deferred.resolve) {
-                        deferred.resolve({ data, headers, context: deferred.context });
+                        deferred.resolve(answer);
                         delete correlationIdCache[correlationId];
                     } else {
-                        deferred.callback(null, { data, headers, context: deferred.context });
+                        deferred.callback(null, answer);
                     }
                 }
             });
@@ -308,6 +311,7 @@ function Carotte(config) {
 
         correlationIdCache[uid] = correlationPromise;
         correlationPromise.context = options.context || {};
+        correlationPromise.options = options;
 
         this.getRpcQueue().then(q => {
             options.headers = Object.assign({
@@ -319,6 +323,17 @@ function Carotte(config) {
         });
 
         return correlationPromise.promise;
+    };
+
+    carotte.invokeWithFullResponse = function invokeWithFullResponse(qualifier, options, payload) {
+        if (payload === undefined) {
+            payload = options;
+            options = {};
+        }
+
+        options.completeAnswer = true;
+
+        return carotte.invoke(qualifier, options, payload);
     };
 
 
@@ -340,8 +355,7 @@ function Carotte(config) {
         }
 
         const uid = puid.generate();
-        correlationIdCache[uid] = { callback };
-        correlationIdCache[uid].context = options.context || {};
+        correlationIdCache[uid] = { callback, context: options.context || {}, options };
 
         this.getRpcQueue().then(q => {
             options.headers = Object.assign({
@@ -354,6 +368,19 @@ function Carotte(config) {
 
         return uid;
     };
+
+    carotte.parallelWithFullResponse =
+        function parallelWithFullResponse(qualifier, options, payload, callback) {
+            if (arguments.length === 3) {
+                callback = payload;
+                payload = options;
+                options = {};
+            }
+
+            options.completeAnswer = true;
+
+            return carotte.parallel(qualifier, options, payload, callback);
+        };
 
     /**
      * Check if the response must be send back and send the response if needed

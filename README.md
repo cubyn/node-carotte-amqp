@@ -65,7 +65,7 @@ carotte.subscribe('direct/hello.world', ({ data }) => {
 });
 
 carotte.invoke('direct/hello.world', { firstname: 'Gabe' })
-    .then(({ data }) => {
+    .then(data => {
         console.log(data);
     });
 ```
@@ -110,7 +110,7 @@ carotte.subscribe('fanout/b', ({ data }) => {
     return `function 2 answer`;
 });
 
-carotte.parallel('fanout', { firstname: 'Gabe' }, (err, { data }) => {
+carotte.parallel('fanout', { firstname: 'Gabe' }, (err, data) => {
     if (!err) {
         console.log(data);
     }
@@ -140,7 +140,7 @@ carotte.subscribe('direct/first-route', ({ data, context, invoke }) => {
     return invoke('direct/second-route', {});
 });
 
-carotte.invoke('direct/first-route', {})
+carotte.invokeWithFullResponse('direct/first-route', {})
     .then(({ data, context }) => {
         console.log(context.requestId); // prints the request ID
         console.log(context.count); // prints 1
@@ -170,7 +170,7 @@ carotte.subscribe('direct/increment', ({ data } => {
 });
 
 carotte.invoke('direct/increment:describe')
-    .then(({ data }) => {
+    .then(data => {
         console.log(data.description);
     });
 ```

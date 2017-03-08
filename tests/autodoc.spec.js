@@ -4,7 +4,7 @@ const carotte = require('../src')({ enableAutodoc: true });
 describe('autodoc', () => {
     it('should answer to carotte fanouts', () => {
         return carotte.invoke('fanout', { exchangeName: 'carotte.fanout' }, { origin: 'master', type: 'all' })
-            .then(({ data }) => {
+            .then(data => {
                 expect(data).to.be.defined;
                 expect(data.name).to.be.eql('carotte-amqp');
             });
@@ -21,7 +21,7 @@ describe('autodoc', () => {
         });
 
         return carotte.invoke('fanout', { exchangeName: 'carotte.fanout' }, { origin: 'master', type: 'all' })
-            .then(({ data }) => {
+            .then(data => {
                 expect(data).to.be.defined;
                 expect(data.subscribers).to.be.defined;
                 expect(data.subscribers['carotte.hello']).to.be.defined;
@@ -52,7 +52,7 @@ describe('autodoc', () => {
         });
 
         return carotte.invoke('fanout', { exchangeName: 'carotte.fanout' }, { origin: 'gateway', type: 'controller' })
-            .then(({ data }) => {
+            .then(data => {
                 expect(data).to.be.defined;
                 expect(data.subscribers).to.be.defined;
                 expect(data.subscribers['controller.hello']).to.be.defined;
