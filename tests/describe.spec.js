@@ -10,7 +10,7 @@ describe('describe', () => {
         });
 
         return carotte.invoke('hello-to-you-describe!:describe', {})
-            .then(({ data }) => {
+            .then(data => {
                 expect(data.meta).to.be.defined;
                 expect(data.meta).to.be.eql('cyborg');
             });
