@@ -487,7 +487,7 @@ function Carotte(config) {
     carotte.handleRetry =
     function handleRetry(qualifier, options, meta, headers, context, message) {
         return err => {
-            return this.getChannel(qualifier)
+            return this.getChannel(qualifier, options.prefetch)
             .then(chan => {
                 let retry = meta.retry || { max: 50 };
 
