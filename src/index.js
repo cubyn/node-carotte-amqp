@@ -355,6 +355,7 @@ function Carotte(config) {
         }
 
         const uid = puid.generate();
+
         correlationIdCache[uid] = { callback, context: options.context || {}, options };
 
         this.getRpcQueue().then(q => {

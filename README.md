@@ -140,7 +140,9 @@ carotte.subscribe('direct/first-route', ({ data, context, invoke }) => {
     return invoke('direct/second-route', {});
 });
 
+
 carotte.invokeWithFullResponse('direct/first-route', {})
+
     .then(({ data, context }) => {
         console.log(context.requestId); // prints the request ID
         console.log(context.count); // prints 1
