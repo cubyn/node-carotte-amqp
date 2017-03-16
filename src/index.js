@@ -171,7 +171,7 @@ function Carotte(config) {
      */
     carotte.getRpcQueue = function getRpcQueue() {
         if (!replyToSubscription) {
-            replyToSubscription = this.subscribe('', { queue: { exclusive: true, durable: false } }, ({ data, headers, context }) => {
+            replyToSubscription = carotte.subscribe('', { queue: { exclusive: true, durable: false } }, ({ data, headers, context }) => {
                 const isError = headers['x-error'];
                 const correlationId = headers['x-correlation-id'];
 
@@ -232,7 +232,7 @@ function Carotte(config) {
         const exchangeName = getExchangeName(options);
 
         producerDebug('called');
-        return this.getChannel()
+        return carotte.getChannel()
             .then(chan => {
                 let ok;
 
@@ -287,7 +287,7 @@ function Carotte(config) {
                 });
 
                 if (err.message.match(errorToRetryRegex)) {
-                    return this.publish(qualifier, options, payload);
+                    return carotte.publish(qualifier, options, payload);
                 }
                 throw err;
             });
@@ -313,13 +313,13 @@ function Carotte(config) {
         correlationPromise.context = options.context || {};
         correlationPromise.options = options;
 
-        this.getRpcQueue().then(q => {
+        carotte.getRpcQueue().then(q => {
             options.headers = Object.assign({
                 'x-reply-to': q.queue,
                 'x-correlation-id': uid
             }, options.headers);
 
-            this.publish(qualifier, options, payload);
+            carotte.publish(qualifier, options, payload);
         });
 
         return correlationPromise.promise;
@@ -358,13 +358,13 @@ function Carotte(config) {
 
         correlationIdCache[uid] = { callback, context: options.context || {}, options };
 
-        this.getRpcQueue().then(q => {
+        carotte.getRpcQueue().then(q => {
             options.headers = Object.assign({
                 'x-reply-to': q.queue,
                 'x-correlation-id': uid
             }, options.headers);
 
-            return this.publish(qualifier, options, payload);
+            return carotte.publish(qualifier, options, payload);
         });
 
         return uid;
@@ -422,7 +422,7 @@ function Carotte(config) {
         const queueName = getQueueName(options, config);
 
         // once channel is ready
-        return this.getChannel(qualifier, options.prefetch)
+        return carotte.getChannel(qualifier, options.prefetch)
             .then(ch => (chan = ch))
             // create the exchange.
             .then(ch => chan.assertExchange(exchangeName, options.type, {
@@ -475,7 +475,7 @@ function Carotte(config) {
                                 const timeNow = new Date().getTime();
                                 autodocAgent.logStats(qualifier, timeNow - startTime, headers['x-origin-service']);
                                 // send back response if needed
-                                return this.replyToPublisher(message, res, context);
+                                return carotte.replyToPublisher(message, res, context);
                             })
                         .then(() => {
                             consumerDebug('Handler success');
@@ -488,7 +488,7 @@ function Carotte(config) {
 
                             return chan.ack(message);
                         })
-                        .catch(this.handleRetry(qualifier, options, meta,
+                        .catch(carotte.handleRetry(qualifier, options, meta,
                             headers, context, message).bind(this));
                     }))
                     .then(() => chan.prefetch(0))
@@ -507,7 +507,7 @@ function Carotte(config) {
     carotte.handleRetry =
     function handleRetry(qualifier, options, meta = {}, headers, context, message) {
         return err => {
-            return this.getChannel(qualifier, options.prefetch)
+            return carotte.getChannel(qualifier, options.prefetch)
             .then(chan => {
                 let retry = meta.retry || { max: 5, strategy: 'exponential', interval: 1 };
 
@@ -532,7 +532,7 @@ function Carotte(config) {
                     const nextCallDelay = computeNextCall(pubOptions);
 
                     setTimeout(() => {
-                        this.publish(qualifier, rePublishOptions, message.content)
+                        carotte.publish(qualifier, rePublishOptions, message.content)
                             .then(() => chan.ack(message))
                             .catch(() => chan.nack(message));
                     }, nextCallDelay);
@@ -542,12 +542,12 @@ function Carotte(config) {
                     delete pubOptions.exchange;
 
                     // publish the message to the dead-letter queue
-                    this.saveDeadLetterIfNeeded(pubOptions, message)
+                    carotte.saveDeadLetterIfNeeded(pubOptions, message)
                         .then(() => {
                             message.properties.headers = cleanRetryHeaders(
                                 message.properties.headers
                             );
-                            return this.replyToPublisher(message, err, context, true);
+                            return carotte.replyToPublisher(message, err, context, true);
                         })
                     .then(() => chan.ack(message))
                         .catch(() => chan.nack(message));
@@ -594,7 +594,7 @@ function Carotte(config) {
                 newHeaders['x-error'] = 'true';
             }
 
-            return this.publish(`direct/${headers['x-reply-to']}`, {
+            return carotte.publish(`direct/${headers['x-reply-to']}`, {
                 headers: newHeaders,
                 context
             }, payload);
