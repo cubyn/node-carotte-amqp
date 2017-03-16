@@ -414,15 +414,7 @@ function Carotte(config) {
             if (config.autoDescribe) {
                 describe.subscribeToDescribe(this, qualifier, meta);
             }
-        } else {
-            meta = { timer: {} };
         }
-
-        meta.timer = Object.assign({
-            delay: 0,
-            max: 0,
-            strategy: 'fixed'
-        }, meta.timer);
 
         options = parseSubscriptionOptions(options, qualifier);
 
@@ -513,11 +505,11 @@ function Carotte(config) {
      * @param {object} message   - the message to republish
      */
     carotte.handleRetry =
-    function handleRetry(qualifier, options, meta, headers, context, message) {
+    function handleRetry(qualifier, options, meta = {}, headers, context, message) {
         return err => {
             return this.getChannel(qualifier, options.prefetch)
             .then(chan => {
-                let retry = meta.retry || { max: 50 };
+                let retry = meta.retry || { max: 5, strategy: 'exponential', interval: 1 };
 
                 const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
                 const pubOptions = messageToOptions(qualifier, message);
@@ -545,6 +537,7 @@ function Carotte(config) {
                             .catch(() => chan.nack(message));
                     }, nextCallDelay);
                 } else {
+                    err.status = 500;
                     consumerDebug(`Handler error: ${err.message}`);
                     delete pubOptions.exchange;
 
