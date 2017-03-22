@@ -231,6 +231,11 @@ function Carotte(config) {
 
         const exchangeName = getExchangeName(options);
 
+        // isContentBuffer is used by internal functions who don't modify the content
+        const buffer = options.isContentBuffer
+            ? payload
+            : Buffer.from(JSON.stringify({ data: payload, context: options.context }));
+
         producerDebug('called');
         return carotte.getChannel()
             .then(chan => {
@@ -247,17 +252,13 @@ function Carotte(config) {
                     ok = exchangeCache[exchangeName];
                 }
 
-                // isContentBuffer is used by internal functions who don't modify the content
-                const buffer = options.isContentBuffer
-                    ? payload
-                    : Buffer.from(JSON.stringify({ data: payload, context: options.context }));
-
                 return ok.then(() => {
                     producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
                     config.transport.log({
                         context: options.context,
                         headers: options.headers,
                         data: payload,
+                        dataLength: buffer.length,
                         subscriber: options.context['origin-consumer'] || '',
                         destination: qualifier,
                         rpc: options.headers['x-reply-to'] !== undefined
@@ -280,6 +281,7 @@ function Carotte(config) {
                     context: options.context,
                     headers: options.headers,
                     data: payload,
+                    dataLength: buffer.length,
                     error: err,
                     subscriber: options.context['origin-consumer'] || '',
                     destination: qualifier,
@@ -445,6 +447,7 @@ function Carotte(config) {
                         const { headers } = message.properties;
 
                         const content = JSON.parse(message.content.toString());
+
                         const { data, context } = content;
                         const startTime = new Date().getTime();
 
@@ -456,6 +459,7 @@ function Carotte(config) {
                             context,
                             headers,
                             data,
+                            dataLength: message.content.length,
                             subscriber: qualifier,
                             destination: '',
                             rpc: headers['x-reply-to'] !== undefined
