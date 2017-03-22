@@ -1,6 +1,6 @@
 {
   "name": "carotte-amqp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AMQP wrapper for the carotte microservice framework",
   "main": "src/index.js",
   "repository": "https://github.com/cubyn/node-carotte-amqp",
