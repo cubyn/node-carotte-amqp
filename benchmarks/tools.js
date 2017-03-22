@@ -9,6 +9,8 @@ const stats = {
 
 let MEM_SUM = 0;
 let REC_COUNT = 0;
+let TICK_COUNT = 0;
+
 function recordStats() {
     const mem = process.memoryUsage();
     MEM_SUM += mem.heapUsed;
@@ -19,13 +21,16 @@ function recordStats() {
 
 const startTime = Date.now();
 function printStats() {
+    const executionTime = (Date.now()-startTime)/1000;
     console.log('################MEMORY#####################');
     console.log(`# Average memory: ${stats.MEM_AVG/1048576} MB`);
     console.log(`# MAX memory: ${stats.MEM_MAX/1048576} MB`);
     console.log(`# MIN memory: ${stats.MEM_MIN/1048576} MB`);
     console.log(`# END memory: ${process.memoryUsage().heapUsed/1048576} MB`);
     console.log('################MEMORY#####################');
-    console.log(`Execution time: ${(Date.now()-startTime)/1000} sec.`);
+    console.log(`Execution time: ${executionTime} sec.`);
+    console.log(`Average: ${executionTime/TICK_COUNT} sec.`);
+    console.log(`Rate: ${TICK_COUNT/executionTime}/sec.`);
 }
 
 let bar;
@@ -43,7 +48,6 @@ function end() {
     process.exit(1);
 }
 
-let TICK_COUNT = 0;
 function tick() {
     if (++TICK_COUNT % 100 === 0) {
         recordStats();
