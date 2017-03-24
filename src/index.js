@@ -541,7 +541,9 @@ function Carotte(config) {
                             .catch(() => chan.nack(message));
                     }, nextCallDelay);
                 } else {
-                    err.status = 500;
+                    if (retry && currentRetry > retry.max) {
+                        err.status = 500;
+                    }
                     consumerDebug(`Handler error: ${err.message}`);
                     delete pubOptions.exchange;
 
