@@ -26,7 +26,7 @@ It is part of a lightweight microservice framework that we are cooking here at C
 
 ## Sample usage
 
-Only basic usage is covered here, you can browse the [https://github.com/cubyn/node-carotte-amqp/tree/master/examples](examples folder) on the repo for more use-cases.
+Only basic usage is covered here, you can browse the [examples folder](https://github.com/cubyn/node-carotte-amqp/tree/master/examples) on the repo for more use-cases.
 
 ### Module configuration
 
