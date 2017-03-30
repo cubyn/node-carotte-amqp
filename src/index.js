@@ -48,7 +48,7 @@ function Carotte(config) {
         enableDeadLetter: true,
         autoDescribe: false,
         retryOnError() {
-            return process.env.NODE_ENV === 'production';
+            return true;
         },
         transport: emptyTransport
     }, config);
