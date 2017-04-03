@@ -254,7 +254,7 @@ function Carotte(config) {
 
                 return ok.then(() => {
                     producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
-                    config.transport.log({
+                    config.transport.info({
                         context: options.context,
                         headers: options.headers,
                         data: payload,
@@ -454,7 +454,7 @@ function Carotte(config) {
                         headers['x-origin-consumer'] = qualifier;
                         context['origin-consumer'] = qualifier;
 
-                        config.transport.log({
+                        config.transport.info({
                             deliveryTag: message.fields.deliveryTag,
                             context,
                             headers,
