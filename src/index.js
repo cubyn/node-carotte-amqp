@@ -513,13 +513,10 @@ function Carotte(config) {
         return err => {
             return carotte.getChannel(qualifier, options.prefetch)
             .then(chan => {
-                let retry = meta.retry || { max: 5, strategy: 'exponential', interval: 1 };
+                const retry = meta.retry || { max: 5, strategy: 'exponential', interval: 1 };
 
                 const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
                 const pubOptions = messageToOptions(qualifier, message);
-
-                // if custom error thrown, we want to forward it to producer
-                if (err.status) retry = false;
 
                 config.transport.error({
                     context,
@@ -530,34 +527,42 @@ function Carotte(config) {
                     rpc: headers['x-reply-to'] !== undefined
                 });
 
-                if (retry && retry.max > 0 && currentRetry <= retry.max) {
+                // if custom error thrown, we want to forward it to producer
+                // and avoid storing it in any dead-letter queue so we return here
+                if (err.status) {
+                    return carotte.replyToPublisher(message, err, context, true)
+                        .then(chan.ack(message));
+                }
+
+                if (retry.max > 0 && currentRetry <= retry.max) {
                     consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
                     const rePublishOptions = incrementRetryHeaders(pubOptions, retry);
                     const nextCallDelay = computeNextCall(pubOptions);
 
-                    setTimeout(() => {
+                    return setTimeout(() => {
                         carotte.publish(qualifier, rePublishOptions, message.content)
                             .then(() => chan.ack(message))
                             .catch(() => chan.nack(message));
                     }, nextCallDelay);
-                } else {
-                    if (retry && currentRetry > retry.max) {
-                        err.status = 500;
-                    }
-                    consumerDebug(`Handler error: ${err.message}`);
-                    delete pubOptions.exchange;
-
-                    // publish the message to the dead-letter queue
-                    carotte.saveDeadLetterIfNeeded(pubOptions, message)
-                        .then(() => {
-                            message.properties.headers = cleanRetryHeaders(
-                                message.properties.headers
-                            );
-                            return carotte.replyToPublisher(message, err, context, true);
-                        })
-                    .then(() => chan.ack(message))
-                        .catch(() => chan.nack(message));
                 }
+
+                if (retry && currentRetry > retry.max) {
+                    err.status = 500;
+                }
+                consumerDebug(`Handler error: ${err.message}`);
+
+                // publish the message to the dead-letter queue
+                // remove exchange options because we manage this queue ourselves
+                delete pubOptions.exchange;
+                return carotte.saveDeadLetterIfNeeded(pubOptions, message)
+                    .then(() => {
+                        message.properties.headers = cleanRetryHeaders(
+                            message.properties.headers
+                        );
+                        return carotte.replyToPublisher(message, err, context, true);
+                    })
+                .then(() => chan.ack(message))
+                .catch(() => chan.nack(message));
             });
         };
     };
