@@ -114,6 +114,7 @@ function Carotte(config) {
      * @return {promise} return the channel created
      */
     carotte.getChannel = function getChannel(name = '', prefetch = 0) {
+        prefetch = Number(prefetch);
         const channelKey = (prefetch > 0) ? `${name}:${prefetch}` : 0;
 
         if (channels[channelKey]) {
