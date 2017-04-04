@@ -553,8 +553,7 @@ function Carotte(config) {
 
                 // publish the message to the dead-letter queue
                 // remove exchange options because we manage this queue ourselves
-                delete pubOptions.exchange;
-                return carotte.saveDeadLetterIfNeeded(pubOptions, message)
+                return carotte.saveDeadLetterIfNeeded(message)
                     .then(() => {
                         message.properties.headers = cleanRetryHeaders(
                             message.properties.headers
@@ -569,14 +568,13 @@ function Carotte(config) {
 
     /**
      * Publish the message to the dead letter queue according to the config
-     * @param {object} options - options to publish
-     * @param {object} content - content for dead letter
+     * @param {object} message - amqplib message
      * @return {promise}
      */
-    carotte.saveDeadLetterIfNeeded = function saveDeadLetterIfNeeded(options, message) {
+    carotte.saveDeadLetterIfNeeded = function saveDeadLetterIfNeeded(message) {
         if (config.enableDeadLetter) {
             return carotte.publish(config.deadLetterQualifier,
-                { headers: message.properties.headers },
+                { headers: message.properties.headers, isContentBuffer: true },
                 message.content);
         }
         return Promise.resolve();
