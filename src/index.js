@@ -33,6 +33,8 @@ const errorToRetryRegex = /(311|320|405|506|541)/;
 
 const pkg = getPackageJson();
 
+let subscribers = [];
+
 /**
  * Create a simple wrapper for amqplib with more functionnalities
  * @constructor
@@ -155,7 +157,14 @@ function Carotte(config) {
 
                 if (config.retryOnError(err)) {
                     return timedPromise(1000)
-                        .then(() => carotte.getChannel(name, prefetch));
+                        .then(() => carotte.getChannel(name, prefetch))
+                        .then(channel => {
+                            const oldSubscribers = subscribers;
+                            subscribers = [];
+                            return Promise.all(oldSubscribers.map(argArray => {
+                                return carotte.subscribe(...argArray);
+                            })).then(() => channel);
+                        });
                 }
 
                 throw err;
@@ -442,6 +451,7 @@ function Carotte(config) {
             // create the queue for this exchange.
             .then(() => chan.assertQueue(queueName, options.queue))
             .then(q => {
+                subscribers.push([qualifier, options, handler, meta]);
                 consumerDebug(`queue ${q.queue} ready.`);
                 // bind the newly created queue to the chan
 
