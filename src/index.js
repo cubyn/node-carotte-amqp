@@ -13,7 +13,6 @@ const {
     deserializeError,
     serializeError,
     extend,
-    timedPromise,
     emptyTransport
 } = require('./utils');
 const {
@@ -33,8 +32,6 @@ const errorToRetryRegex = /(311|320|405|506|541)/;
 
 const pkg = getPackageJson();
 
-let subscribers = [];
-
 /**
  * Create a simple wrapper for amqplib with more functionnalities
  * @constructor
@@ -49,9 +46,9 @@ function Carotte(config) {
         deadLetterQualifier: 'dead-letter',
         enableDeadLetter: true,
         autoDescribe: false,
-        retryOnError() {
-            return true;
-        },
+        retryOnError() { },
+        onError(err) { throw err; },
+        onClose(err) { throw err; },
         transport: emptyTransport
     }, config);
 
@@ -73,7 +70,7 @@ function Carotte(config) {
 
     let replyToSubscription;
     let connexion;
-    let channels = {};
+    const channels = {};
 
     carotte.getConnection = function getConnection() {
         if (connexion) {
@@ -81,29 +78,10 @@ function Carotte(config) {
         }
 
         connexion = amqp.connect(`amqp://${config.host}`, config.connexion).then(conn => {
-            conn.on('close', error => {
-                config.transport.error('amqp.connection.closed', { error });
-                connexion = null;
-                channels = {};
-                carotte.cleanExchangeCache();
-            });
-            conn.once('error', error => {
-                config.transport.error('amqp.connection.error', { error });
-                connexion = null;
-                channels = {};
-            });
+            conn.on('close', config.onClose);
+            conn.once('error', config.onError);
 
             return conn;
-        })
-        .catch((err) => {
-            connexion = null;
-
-            if (config.retryOnError(err)) {
-                return timedPromise(1000)
-                    .then(carotte.getConnection);
-            }
-
-            throw err;
         });
 
         return connexion;
@@ -128,22 +106,9 @@ function Carotte(config) {
             .then(chan => { chan.prefetch(prefetch, (process.env.RABBITMQ_PREFETCH === 'legacy') ? undefined : true); return chan; })
             .then(chan => {
                 initDebug('channel created correctly');
-                chan.on('close', error => {
-                    config.transport.error('amqp.channel.closed', {
-                        channel: channelKey,
-                        error
-                    });
-                    channels[channelKey] = null;
-                    carotte.cleanExchangeCache();
-                });
+                chan.on('close', config.onClose);
                 // this allow chan to throw on errors
-                chan.once('error', error => {
-                    config.transport.error('amqp.channel.error', {
-                        channel: channelKey,
-                        error
-                    });
-                    channels[channelKey] = null;
-                });
+                chan.once('error', config.onError);
 
                 if (config.enableDeadLetter) {
                     return chan.assertQueue(config.deadLetterQualifier)
@@ -151,23 +116,6 @@ function Carotte(config) {
                         .then(() => chan);
                 }
                 return chan;
-            })
-            .catch((err) => {
-                channels[channelKey] = undefined;
-
-                if (config.retryOnError(err)) {
-                    return timedPromise(1000)
-                        .then(() => carotte.getChannel(name, prefetch))
-                        .then(channel => {
-                            const oldSubscribers = subscribers;
-                            subscribers = [];
-                            return Promise.all(oldSubscribers.map(argArray => {
-                                return carotte.subscribe(...argArray);
-                            })).then(() => channel);
-                        });
-                }
-
-                throw err;
             });
 
         return channels[channelKey];
@@ -451,7 +399,6 @@ function Carotte(config) {
             // create the queue for this exchange.
             .then(() => chan.assertQueue(queueName, options.queue))
             .then(q => {
-                subscribers.push([qualifier, options, handler, meta]);
                 consumerDebug(`queue ${q.queue} ready.`);
                 // bind the newly created queue to the chan
 
