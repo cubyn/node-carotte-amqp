@@ -47,8 +47,6 @@ function Carotte(config) {
         enableDeadLetter: true,
         autoDescribe: false,
         retryOnError() { },
-        onError(err) { throw err; },
-        onClose(err) { throw err; },
         transport: emptyTransport
     }, config);
 
@@ -70,7 +68,7 @@ function Carotte(config) {
 
     let replyToSubscription;
     let connexion;
-    const channels = {};
+    let channels = {};
 
     carotte.getConnection = function getConnection() {
         if (connexion) {
@@ -78,10 +76,21 @@ function Carotte(config) {
         }
 
         connexion = amqp.connect(`amqp://${config.host}`, config.connexion).then(conn => {
-            conn.on('close', config.onClose);
-            conn.once('error', config.onError);
+            conn.on('close', (err) => {
+                connexion = undefined;
+                channels = {};
+                carotte.cleanExchangeCache();
+                carotte.onClose(err);
+            });
+            conn.once('error', carotte.onError);
 
             return conn;
+        })
+        .catch(err => {
+            connexion = undefined;
+            channels = {};
+            carotte.cleanExchangeCache();
+            throw err;
         });
 
         return connexion;
@@ -106,9 +115,13 @@ function Carotte(config) {
             .then(chan => { chan.prefetch(prefetch, (process.env.RABBITMQ_PREFETCH === 'legacy') ? undefined : true); return chan; })
             .then(chan => {
                 initDebug('channel created correctly');
-                chan.on('close', config.onClose);
+                chan.on('close', (err) => {
+                    channels[channelKey] = undefined;
+                    carotte.cleanExchangeCache();
+                    carotte.onClose(err);
+                });
                 // this allow chan to throw on errors
-                chan.once('error', config.onError);
+                chan.once('error', carotte.onError);
 
                 if (config.enableDeadLetter) {
                     return chan.assertQueue(config.deadLetterQualifier)
@@ -116,6 +129,11 @@ function Carotte(config) {
                         .then(() => chan);
                 }
                 return chan;
+            })
+            .catch(err => {
+                channels[channelKey] = undefined;
+                carotte.cleanExchangeCache();
+                throw err;
             });
 
         return channels[channelKey];
@@ -257,6 +275,7 @@ function Carotte(config) {
                 if (err.message.match(errorToRetryRegex)) {
                     return carotte.publish(qualifier, options, payload);
                 }
+
                 throw err;
             });
     };
@@ -579,6 +598,13 @@ function Carotte(config) {
     if (config.enableAutodoc) {
         autodocAgent.ensureAutodocAgent(carotte);
     }
+
+    carotte.onError = function (err) {
+        config.transport.error(err);
+        return err;
+    };
+
+    carotte.onClose = carotte.onError;
 
     return carotte;
 }
