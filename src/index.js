@@ -46,7 +46,6 @@ function Carotte(config) {
         deadLetterQualifier: 'dead-letter',
         enableDeadLetter: true,
         autoDescribe: false,
-        retryOnError() { },
         transport: emptyTransport
     }, config);
 
@@ -599,12 +598,13 @@ function Carotte(config) {
         autodocAgent.ensureAutodocAgent(carotte);
     }
 
-    carotte.onError = function (err) {
+    function logError(err) {
         config.transport.error(err);
         return err;
-    };
+    }
 
-    carotte.onClose = carotte.onError;
+    carotte.onError = logError;
+    carotte.onClose = logError;
 
     return carotte;
 }
