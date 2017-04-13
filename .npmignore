@@ -1,0 +1,8 @@
+.*
+coverage/
+benchmarks/
+examples/
+node_modules/
+tests/
+Makefile
+src/*.spec.js
