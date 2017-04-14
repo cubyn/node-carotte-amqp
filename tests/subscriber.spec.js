@@ -1,5 +1,5 @@
 const expect = require('chai').expect;
-const carotte = require('../src')();
+const carotte = require('./client')();
 
 describe('subscriber', () => {
     describe('direct', () => {
@@ -16,8 +16,8 @@ describe('subscriber', () => {
             }, ({ data, context }) => {
                 expect(data).to.be.defined;
                 expect(data.hello).to.be.defined;
-                expect(data.hello).to.be.eql('world');
-                expect(context.transactionId).to.be.eql('1234');
+                expect(data.hello).to.eql('world');
+                expect(context.transactionId).to.eql('1234');
                 done();
             })
             .then(() => carotte.publish('direct/hello1', {
@@ -31,7 +31,7 @@ describe('subscriber', () => {
             carotte.subscribe('fanout/queue-name', { queue: { exclusive: true } }, ({ data }) => {
                 try {
                     expect(data.hello).to.be.defined;
-                    expect(data.hello).to.be.eql('world');
+                    expect(data.hello).to.eql('world');
                     done();
                 } catch (err) {
                     done(err);
@@ -53,7 +53,7 @@ describe('subscriber', () => {
             carotte.subscribe('topic/topic-key-1/my-queue-name', { queue: { exclusive: true } }, ({ data }) => {
                 try {
                     expect(data.hello).to.be.defined;
-                    expect(data.hello).to.be.eql('world');
+                    expect(data.hello).to.eql('world');
                     done();
                 } catch (err) {
                     done(err);
@@ -108,8 +108,8 @@ describe('subscriber', () => {
                 throw new Error('Should not succeed');
             })
             .catch((err) => {
-                expect(err.status).to.be.eql(400);
-                expect(err.message).to.not.be.eql('Should not be called a second time');
+                expect(err.status).to.eql(400);
+                expect(err.message).to.not.eql('Should not be called a second time');
             });
         });
     });

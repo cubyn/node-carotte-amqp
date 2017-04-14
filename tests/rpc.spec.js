@@ -1,5 +1,5 @@
 const expect = require('chai').expect;
-const carotte = require('../src')();
+const carotte = require('./client')();
 
 describe('rpc', () => {
     describe('invoke', () => {
@@ -11,7 +11,7 @@ describe('rpc', () => {
                 return carotte.invoke('direct/hello-rpc', {}, {})
                     .then(data => {
                         expect(data).to.be.defined;
-                        expect(data.a).to.be.eql(1);
+                        expect(data.a).to.eql(1);
                     });
             });
         });
@@ -24,7 +24,7 @@ describe('rpc', () => {
                 return carotte.invoke('direct/hello-rpc2', {})
                     .then(data => {
                         expect(data).to.be.defined;
-                        expect(data.a).to.be.eql(2);
+                        expect(data.a).to.eql(2);
                     });
             });
         });
@@ -61,7 +61,7 @@ describe('rpc', () => {
             .then(() => {
                 let counter = 0;
                 return carotte.parallelWithFullResponse('fanout', { exchangeName: 'test' }, { hello: 'world' }, (err, { data }) => {
-                    expect(data.a).to.be.eql(2);
+                    expect(data.a).to.eql(2);
                     counter++;
                     if (counter === 2) {
                         done();
@@ -76,7 +76,7 @@ describe('rpc', () => {
             })
             .then(() => {
                 return carotte.parallel('fanout', { exchangeName: 'test2', hello: 'world' }, {}, (error, data) => {
-                    expect(data.a).to.be.eql(2);
+                    expect(data.a).to.eql(2);
                     done();
                 });
             });
@@ -88,7 +88,7 @@ describe('rpc', () => {
             }, { retry: { max: 5 } })
             .then(() => {
                 return carotte.parallel('fanout', { durable: false, exchangeName: 'errors' }, { hello: 'world' }, (error) => {
-                    expect(error.message).to.be.eql('nope');
+                    expect(error.message).to.eql('nope');
                     done();
                 });
             });
@@ -125,7 +125,7 @@ describe('rpc', () => {
             })
             .then(() => {
                 return carotte.subscribe('direct/distributed-tracing-rpc-2', { queue: { exclusive: true } }, ({ context, invoke }) => {
-                    expect(context.hello).to.be.eql(1);
+                    expect(context.hello).to.eql(1);
                     context.hello++;
                     return { a: 1 };
                 });
@@ -133,9 +133,9 @@ describe('rpc', () => {
             .then(() => {
                 return carotte.invokeWithFullResponse('direct/distributed-tracing-rpc', {})
                     .then(({ data, context }) => {
-                        expect(context.hello).to.be.eql(2);
+                        expect(context.hello).to.eql(2);
                         expect(data).to.be.defined;
-                        expect(data.a).to.be.eql(1);
+                        expect(data.a).to.eql(1);
                     });
             });
         });

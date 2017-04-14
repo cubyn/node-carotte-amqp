@@ -16,5 +16,5 @@ rabbitmq-stop:
 test:
 	node_modules/.bin/mocha tests/* src/**/*.spec.js
 
-cover: 
+test-cover: 
 	node_modules/.bin/istanbul cover -x "src/**.spec.js" node_modules/.bin/_mocha -- tests/* src/**/*.spec.js
