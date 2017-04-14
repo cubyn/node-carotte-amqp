@@ -7,7 +7,7 @@ pipeline:
   test:
     image: cubyn/node:ci-7
     commands:
-      - AMQP_HOST=broker:5672 make test-cover
+      - AMQP_HOST=localhost:5672 make test-cover
     when:
       status: [ success, failure ]
   notify:
