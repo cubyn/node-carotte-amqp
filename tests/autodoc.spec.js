@@ -1,12 +1,12 @@
 const expect = require('chai').expect;
-const carotte = require('../src')({ enableAutodoc: true });
+const carotte = require('./client')({ enableAutodoc: true });
 
 describe('autodoc', () => {
     it('should answer to carotte fanouts', () => {
         return carotte.invoke('fanout', { exchangeName: 'carotte.fanout' }, { origin: 'master', type: 'all' })
             .then(data => {
                 expect(data).to.be.defined;
-                expect(data.name).to.be.eql('carotte-amqp');
+                expect(data.name).to.eql('carotte-amqp');
             });
     });
 
@@ -27,8 +27,8 @@ describe('autodoc', () => {
                 expect(data.subscribers['carotte.hello']).to.be.defined;
                 expect(data.subscribers['carotte.hello'].requestSchema).to.be.defined;
                 expect(data.subscribers['carotte.hello'].responseSchema).to.be.defined;
-                expect(data.subscribers['carotte.hello'].requestSchema.hello).to.be.eql('world');
-                expect(data.subscribers['carotte.hello'].responseSchema.foo).to.be.eql('bar');
+                expect(data.subscribers['carotte.hello'].requestSchema.hello).to.eql('world');
+                expect(data.subscribers['carotte.hello'].responseSchema.foo).to.eql('bar');
             });
     });
 

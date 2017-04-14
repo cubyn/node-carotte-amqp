@@ -1,0 +1,35 @@
+pipeline:
+  lint:
+    image: cubyn/node:ci-7
+    commands:
+      - make deps
+      - make lint
+  test:
+    image: cubyn/node:ci-7
+    commands:
+      - AMQP_HOST=broker:5672 make test-cover
+    when:
+      status: [ success, failure ]
+  notify:
+    image: plugins/slack
+    channel: dev-notifications
+    username: drone
+    webhook: ${SLACK_WEBHOOK}
+    when:
+      status: [ success, failure ]
+  report:
+    image: cubyn/drone-coverage-report:latest
+    repo: ${DRONE_REPO_NAME}
+    commiter: ${DRONE_COMMIT_AUTHOR}
+    branch: ${DRONE_BRANCH}
+    gprivate_key: ${COVER_REPORT_PRIVATE_KEY}
+    gprivate_key_id: ${COVER_REPORT_PRIVATE_KEY_ID}
+    gclient_email: ${COVER_REPORT_CLIENT_EMAIL}
+    gclient_id: ${COVER_REPORT_CLIENT_ID}
+    gspreadsheet_id: ${COVER_REPORT_SPREADSHEET_ID}
+    when:
+      status: [ success ]
+
+services:
+  broker:
+    image: rabbitmq:3.6-alpine
