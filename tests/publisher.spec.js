@@ -1,5 +1,5 @@
 const expect = require('chai').expect;
-const carotte = require('../src');
+const carotte = require('./client');
 
 describe('publisher', () => {
     it('should return a promise', () => {
@@ -28,7 +28,7 @@ describe('publisher', () => {
     });
 
     it('should not be able to publish when defining a bad exchange (making default exchange non-durable)', () => {
-        return carotte().publish('', { durable: false }, { })
+        return carotte().publish('', { durable: false }, {})
             .then(res => {
                 throw new Error('Should not pass');
             })
