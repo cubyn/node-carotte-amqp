@@ -15,4 +15,19 @@ describe('describe', () => {
                 expect(data.meta).to.eql('cyborg');
             });
     });
+
+    it('should expose metas on a topic route using a :describe suffix on a direct route', (done) => {
+        carotte.subscribe('topic/hello-to-you-describe!', { queue: { exclusive: true } }, () => {
+            done(new Error('Das is not gut!'));
+        }, {
+            meta: 'cyborg'
+        });
+
+        carotte.invoke('hello-to-you-describe!:describe', {})
+            .then(data => {
+                expect(data.meta).to.be.defined;
+                expect(data.meta).to.be.eql('cyborg');
+            })
+            .then(done);
+    });
 });
