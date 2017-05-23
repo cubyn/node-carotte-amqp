@@ -13,7 +13,6 @@ const {
     deserializeError,
     serializeError,
     extend,
-    timedPromise,
     emptyTransport
 } = require('./utils');
 const {
@@ -47,9 +46,6 @@ function Carotte(config) {
         deadLetterQualifier: 'dead-letter',
         enableDeadLetter: true,
         autoDescribe: false,
-        retryOnError() {
-            return true;
-        },
         transport: emptyTransport
     }, config);
 
@@ -79,28 +75,20 @@ function Carotte(config) {
         }
 
         connexion = amqp.connect(`amqp://${config.host}`, config.connexion).then(conn => {
-            conn.on('close', error => {
-                config.transport.error('amqp.connection.closed', { error });
-                connexion = null;
+            conn.on('close', (err) => {
+                connexion = undefined;
                 channels = {};
                 carotte.cleanExchangeCache();
+                carotte.onClose(err);
             });
-            conn.once('error', error => {
-                config.transport.error('amqp.connection.error', { error });
-                connexion = null;
-                channels = {};
-            });
+            conn.once('error', carotte.onError);
 
             return conn;
         })
-        .catch((err) => {
-            connexion = null;
-
-            if (config.retryOnError(err)) {
-                return timedPromise(1000)
-                    .then(carotte.getConnection);
-            }
-
+        .catch(err => {
+            connexion = undefined;
+            channels = {};
+            carotte.cleanExchangeCache();
             throw err;
         });
 
@@ -126,22 +114,13 @@ function Carotte(config) {
             .then(chan => { chan.prefetch(prefetch, (process.env.RABBITMQ_PREFETCH === 'legacy') ? undefined : true); return chan; })
             .then(chan => {
                 initDebug('channel created correctly');
-                chan.on('close', error => {
-                    config.transport.error('amqp.channel.closed', {
-                        channel: channelKey,
-                        error
-                    });
-                    channels[channelKey] = null;
+                chan.on('close', (err) => {
+                    channels[channelKey] = undefined;
                     carotte.cleanExchangeCache();
+                    carotte.onClose(err);
                 });
                 // this allow chan to throw on errors
-                chan.once('error', error => {
-                    config.transport.error('amqp.channel.error', {
-                        channel: channelKey,
-                        error
-                    });
-                    channels[channelKey] = null;
-                });
+                chan.once('error', carotte.onError);
 
                 if (config.enableDeadLetter) {
                     return chan.assertQueue(config.deadLetterQualifier)
@@ -150,14 +129,9 @@ function Carotte(config) {
                 }
                 return chan;
             })
-            .catch((err) => {
+            .catch(err => {
                 channels[channelKey] = undefined;
-
-                if (config.retryOnError(err)) {
-                    return timedPromise(1000)
-                        .then(() => carotte.getChannel(name, prefetch));
-                }
-
+                carotte.cleanExchangeCache();
                 throw err;
             });
 
@@ -268,8 +242,7 @@ function Carotte(config) {
                         config.transport.info(`${rpc ? '>> ' : '>  '} ${options.type}/${options.routingKey}`, {
                             context: options.context,
                             headers: options.headers,
-                            data: buffer.toString(),
-                            dataLength: buffer.length,
+                            data: payload,
                             subscriber: options.context['origin-consumer'] || '',
                             destination: qualifier
                         });
@@ -291,8 +264,7 @@ function Carotte(config) {
                 config.transport.error(`${rpc ? '>> ' : '>  '} ${options.type}/${options.routingKey}`, {
                     context: options.context,
                     headers: options.headers,
-                    data: buffer.toString(),
-                    dataLength: buffer.length,
+                    data: payload,
                     subscriber: options.context['origin-consumer'] || '',
                     destination: qualifier,
                     error: err
@@ -301,6 +273,7 @@ function Carotte(config) {
                 if (err.message.match(errorToRetryRegex)) {
                     return carotte.publish(qualifier, options, payload);
                 }
+
                 throw err;
             });
     };
@@ -489,8 +462,7 @@ function Carotte(config) {
                                 config.transport.info(`${rpc ? '<< ' : '<  '} ${qualifier}`, {
                                     context,
                                     headers,
-                                    data: messageStr,
-                                    dataLength: message.content.length,
+                                    data,
                                     subscriber: qualifier,
                                     destination: '',
                                     executionMs: new Date().getTime() - startTime,
@@ -623,6 +595,14 @@ function Carotte(config) {
     if (config.enableAutodoc) {
         autodocAgent.ensureAutodocAgent(carotte);
     }
+
+    function logError(err) {
+        config.transport.error(err);
+        return err;
+    }
+
+    carotte.onError = logError;
+    carotte.onClose = logError;
 
     return carotte;
 }
