@@ -242,8 +242,7 @@ function Carotte(config) {
                         config.transport.info(`${rpc ? '>> ' : '>  '} ${options.type}/${options.routingKey}`, {
                             context: options.context,
                             headers: options.headers,
-                            data: buffer.toString(),
-                            dataLength: buffer.length,
+                            data: payload,
                             subscriber: options.context['origin-consumer'] || '',
                             destination: qualifier
                         });
@@ -265,8 +264,7 @@ function Carotte(config) {
                 config.transport.error(`${rpc ? '>> ' : '>  '} ${options.type}/${options.routingKey}`, {
                     context: options.context,
                     headers: options.headers,
-                    data: buffer.toString(),
-                    dataLength: buffer.length,
+                    data: payload,
                     subscriber: options.context['origin-consumer'] || '',
                     destination: qualifier,
                     error: err
@@ -464,8 +462,7 @@ function Carotte(config) {
                                 config.transport.info(`${rpc ? '<< ' : '<  '} ${qualifier}`, {
                                     context,
                                     headers,
-                                    data: messageStr,
-                                    dataLength: message.content.length,
+                                    data,
                                     subscriber: qualifier,
                                     destination: '',
                                     executionMs: new Date().getTime() - startTime,
