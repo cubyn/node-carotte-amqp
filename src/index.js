@@ -239,7 +239,7 @@ function Carotte(config) {
                 return ok.then(() => {
                     producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
                     if (log) {
-                        config.transport.info(`${rpc ? '>> ' : '>  '} ${options.type}/${options.routingKey}`, {
+                        config.transport.info(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
                             context: options.context,
                             headers: options.headers,
                             data: payload,
@@ -261,7 +261,7 @@ function Carotte(config) {
                 });
             })
             .catch(err => {
-                config.transport.error(`${rpc ? '>> ' : '>  '} ${options.type}/${options.routingKey}`, {
+                config.transport.error(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
                     context: options.context,
                     headers: options.headers,
                     data: payload,
@@ -459,7 +459,7 @@ function Carotte(config) {
                             consumerDebug('Handler success');
                             // otherwise internal subscribe (rpc…)
                             if (qualifier) {
-                                config.transport.info(`${rpc ? '<< ' : '<  '} ${qualifier}`, {
+                                config.transport.info(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                                     context,
                                     headers,
                                     data,
@@ -499,7 +499,7 @@ function Carotte(config) {
                 const pubOptions = messageToOptions(qualifier, message);
                 const rpc = headers['x-reply-to'] !== undefined;
 
-                config.transport.error(`${rpc ? '<< ' : '<  '} ${qualifier}`, {
+                config.transport.error(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                     context,
                     headers,
                     subscriber: qualifier,
