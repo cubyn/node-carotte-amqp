@@ -208,6 +208,11 @@ function Carotte(config) {
             options = {};
         }
 
+        if (qualifier.startsWith('topic/')) {
+            const resubQualifier = qualifier.split('/');
+            qualifier = `topic/${resubQualifier[resubQualifier.length - 1]}`;
+        }
+
         options = Object.assign({ headers: {}, context: {} }, options, parseQualifier(qualifier));
         options.headers['x-destination'] = qualifier;
 
@@ -421,6 +426,14 @@ function Carotte(config) {
 
                 const bindedWith = options.routingKey || q.queue;
                 return chan.bindQueue(q.queue, exchangeName, bindedWith)
+                .then(() => {
+                    if (qualifier.startsWith('topic/')) {
+                        const resubQualifier = qualifier.split('/');
+                        return chan.bindQueue(q.queue, exchangeName,
+                            `${resubQualifier[resubQualifier.length - 1]}`);
+                    }
+                    return chan;
+                })
                 .then(() => {
                     consumerDebug(`${q.queue} binded on ${exchangeName} with ${bindedWith}`);
 
