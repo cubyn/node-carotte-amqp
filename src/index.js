@@ -214,7 +214,10 @@ function Carotte(config) {
         }
 
         options = Object.assign({ headers: {}, context: {} }, options, parseQualifier(qualifier));
-        options.headers['x-destination'] = qualifier;
+
+        if (!config.enableDeadLetter || config.deadLetterQualifier !== qualifier) {
+            options.headers['x-destination'] = qualifier;
+        }
 
         const exchangeName = getExchangeName(options);
         const rpc = options.headers['x-reply-to'] !== undefined;
