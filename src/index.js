@@ -465,13 +465,15 @@ function Carotte(config) {
                                 publish: subPublication(context, 'publish').bind(this),
                                 parallel: subPublication(context, 'parallel').bind(this)
                             })
-                            .then(res => {
+                            .then(response => {
                                 const timeNow = new Date().getTime();
                                 autodocAgent.logStats(qualifier, timeNow - startTime, headers['x-origin-service']);
                                 // send back response if needed
-                                return carotte.replyToPublisher(message, res, context);
+                                return carotte.replyToPublisher(message, response, context)
+                                    // forward response down the chain
+                                    .then(() => response);
                             })
-                        .then(() => {
+                        .then(response => {
                             consumerDebug('Handler success');
                             // otherwise internal subscribe (rpc…)
                             if (qualifier) {
@@ -479,6 +481,7 @@ function Carotte(config) {
                                     context,
                                     headers,
                                     data,
+                                    response,
                                     subscriber: qualifier,
                                     destination: '',
                                     executionMs: new Date().getTime() - startTime,
