@@ -250,7 +250,7 @@ function Carotte(config) {
                         config.transport.info(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
                             context: options.context,
                             headers: options.headers,
-                            data: payload,
+                            request: payload,
                             subscriber: options.context['origin-consumer'] || '',
                             destination: qualifier
                         });
@@ -272,7 +272,7 @@ function Carotte(config) {
                 config.transport.error(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
                     context: options.context,
                     headers: options.headers,
-                    data: payload,
+                    request: payload,
                     subscriber: options.context['origin-consumer'] || '',
                     destination: qualifier,
                     error: err
@@ -480,7 +480,6 @@ function Carotte(config) {
                                 config.transport.info(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                                     context,
                                     headers,
-                                    data,
                                     response,
                                     subscriber: qualifier,
                                     destination: '',
