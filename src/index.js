@@ -261,7 +261,7 @@ function Carotte(config) {
                         buffer, {
                             headers: Object.assign({}, options.headers, {
                                 'x-carotte-version': carottePackage.version,
-                                'x-origin-service': carottePackage.name
+                                'x-origin-service': pkg.name
                             }),
                             contentType: 'application/json'
                         }
@@ -452,8 +452,9 @@ function Carotte(config) {
                         const startTime = new Date().getTime();
                         const rpc = headers['x-reply-to'] !== undefined;
 
+                        const previousConsumer = headers['x-origin-consumer'];
                         headers['x-origin-consumer'] = qualifier;
-                        context['origin-consumer'] = qualifier;
+                        context['origin-consumer'] = previousConsumer;
 
                         // execute the handler inside a try catch block
                         return execInPromise(handler,
@@ -467,7 +468,9 @@ function Carotte(config) {
                             })
                             .then(res => {
                                 const timeNow = new Date().getTime();
-                                autodocAgent.logStats(qualifier, timeNow - startTime, headers['x-origin-service']);
+                                autodocAgent.logStats(qualifier,
+                                    timeNow - startTime,
+                                    previousConsumer);
                                 // send back response if needed
                                 return carotte.replyToPublisher(message, res, context);
                             })
