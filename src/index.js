@@ -261,7 +261,7 @@ function Carotte(config) {
                         buffer, {
                             headers: Object.assign({}, options.headers, {
                                 'x-carotte-version': carottePackage.version,
-                                'x-origin-service': carottePackage.name
+                                'x-origin-service': pkg.name
                             }),
                             contentType: 'application/json'
                         }
@@ -452,8 +452,7 @@ function Carotte(config) {
                         const startTime = new Date().getTime();
                         const rpc = headers['x-reply-to'] !== undefined;
 
-                        headers['x-origin-consumer'] = qualifier;
-                        context['origin-consumer'] = qualifier;
+                        context['origin-consumer'] = headers['x-origin-consumer'];
 
                         // execute the handler inside a try catch block
                         return execInPromise(handler,
@@ -461,13 +460,15 @@ function Carotte(config) {
                                 data,
                                 headers,
                                 context,
-                                invoke: subPublication(context, 'invoke').bind(this),
-                                publish: subPublication(context, 'publish').bind(this),
-                                parallel: subPublication(context, 'parallel').bind(this)
+                                invoke: subPublication(context, 'invoke', qualifier).bind(this),
+                                publish: subPublication(context, 'publish', qualifier).bind(this),
+                                parallel: subPublication(context, 'parallel', qualifier).bind(this)
                             })
                             .then(response => {
                                 const timeNow = new Date().getTime();
-                                autodocAgent.logStats(qualifier, timeNow - startTime, headers['x-origin-service']);
+                                autodocAgent.logStats(qualifier,
+                                    timeNow - startTime,
+                                    context['origin-consumer'] || headers['x-origin-service']);
                                 // send back response if needed
                                 return carotte.replyToPublisher(message, response, context)
                                     // forward response down the chain
@@ -631,12 +632,16 @@ function Carotte(config) {
  * @param  {string} method  The name of the carotte method to wrap
  * @return {Promise}        The wrapped method return value
  */
-function subPublication(context, method) {
+function subPublication(context, method, originQualifier) {
     return function (qualifier, options, ...params) {
         if (!params.length) {
             params.push(options);
             options = {};
         }
+
+        options.headers = Object.assign({}, options.headers, {
+            'x-origin-consumer': originQualifier
+        });
 
         options.context = Object.assign(context, options.context);
 
