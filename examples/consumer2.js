@@ -4,13 +4,21 @@ const carotte = require('../src')({
 
 let breakk = 0;
 
-carotte.subscribe('direct/my.routing.key.a', ({ data }) => {
-    // return new Promise(resolve => setTimeout(() => resolve(data), 10000));
-    // if (breakk < 5) {
-        // breakk++;
-        throw new Error('ok');
-    // }
-    // return data;
+carotte.subscribe('direct/my.routing.key.b', ({ data, context, headers }) => {
+    console.log('B', headers, context, data);
+}, {
+    schema: {},
+    retry: {
+        max: 5,
+        interval: 0,
+        strategy: 'fixed'
+    },
+    permissions: []
+});
+
+carotte.subscribe('direct/my.routing.key.a', ({ data, context, headers, invoke }) => {
+    console.log('A', headers, context, data);
+    return invoke('direct/my.routing.key.b', data);
 }, {
     schema: {},
     retry: {
