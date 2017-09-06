@@ -13,7 +13,8 @@ const {
     deserializeError,
     serializeError,
     extend,
-    emptyTransport
+    emptyTransport,
+    getTransactionStack
 } = require('./utils');
 const {
     parseQualifier,
@@ -226,7 +227,12 @@ function Carotte(config) {
         // isContentBuffer is used by internal functions who don't modify the content
         const buffer = options.isContentBuffer
             ? payload
-            : Buffer.from(JSON.stringify({ data: payload, context: options.context }));
+            : Buffer.from(JSON.stringify({
+                data: payload,
+                context: Object.assign({}, options.context, {
+                    transactionStack: getTransactionStack(options.context)
+                })
+            }));
 
         producerDebug('called');
         return carotte.getChannel()
@@ -255,6 +261,7 @@ function Carotte(config) {
                             destination: qualifier
                         });
                     }
+
                     return chan.publish(
                         exchangeName,
                         options.routingKey,

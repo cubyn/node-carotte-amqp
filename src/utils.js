@@ -94,6 +94,24 @@ const emptyTransport = {
     warn: noop
 };
 
+const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+const CHARS_LENGTH = CHARS.length;
+
+function generateStackId() {
+    let id = '';
+
+    for (let i = 0; i < 4; i++) {
+        id += CHARS.charAt(Math.floor(Math.random() * CHARS_LENGTH));
+    }
+
+    return id;
+}
+
+function getTransactionStack(context) {
+    if (!context.transactionStack) return [generateStackId()];
+    return [...context.transactionStack, generateStackId()];
+}
+
 module.exports = {
     createDeferred,
     execInPromise,
@@ -101,5 +119,6 @@ module.exports = {
     serializeError,
     deserializeError,
     extend,
-    emptyTransport
+    emptyTransport,
+    getTransactionStack
 };
