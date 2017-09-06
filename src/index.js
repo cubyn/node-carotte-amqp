@@ -13,8 +13,8 @@ const {
     deserializeError,
     serializeError,
     extend,
-    timedPromise,
-    emptyTransport
+    emptyTransport,
+    getTransactionStack
 } = require('./utils');
 const {
     parseQualifier,
@@ -47,9 +47,6 @@ function Carotte(config) {
         deadLetterQualifier: 'dead-letter',
         enableDeadLetter: true,
         autoDescribe: false,
-        retryOnError() {
-            return true;
-        },
         transport: emptyTransport
     }, config);
 
@@ -79,28 +76,20 @@ function Carotte(config) {
         }
 
         connexion = amqp.connect(`amqp://${config.host}`, config.connexion).then(conn => {
-            conn.on('close', error => {
-                config.transport.error('amqp.connection.closed', { error });
-                connexion = null;
+            conn.on('close', (err) => {
+                connexion = undefined;
                 channels = {};
                 carotte.cleanExchangeCache();
+                carotte.onClose(err);
             });
-            conn.once('error', error => {
-                config.transport.error('amqp.connection.error', { error });
-                connexion = null;
-                channels = {};
-            });
+            conn.once('error', carotte.onError);
 
             return conn;
         })
-        .catch((err) => {
-            connexion = null;
-
-            if (config.retryOnError(err)) {
-                return timedPromise(1000)
-                    .then(carotte.getConnection);
-            }
-
+        .catch(err => {
+            connexion = undefined;
+            channels = {};
+            carotte.cleanExchangeCache();
             throw err;
         });
 
@@ -126,22 +115,13 @@ function Carotte(config) {
             .then(chan => { chan.prefetch(prefetch, (process.env.RABBITMQ_PREFETCH === 'legacy') ? undefined : true); return chan; })
             .then(chan => {
                 initDebug('channel created correctly');
-                chan.on('close', error => {
-                    config.transport.error('amqp.channel.closed', {
-                        channel: channelKey,
-                        error
-                    });
-                    channels[channelKey] = null;
+                chan.on('close', (err) => {
+                    channels[channelKey] = undefined;
                     carotte.cleanExchangeCache();
+                    carotte.onClose(err);
                 });
                 // this allow chan to throw on errors
-                chan.once('error', error => {
-                    config.transport.error('amqp.channel.error', {
-                        channel: channelKey,
-                        error
-                    });
-                    channels[channelKey] = null;
-                });
+                chan.once('error', carotte.onError);
 
                 if (config.enableDeadLetter) {
                     return chan.assertQueue(config.deadLetterQualifier)
@@ -150,14 +130,9 @@ function Carotte(config) {
                 }
                 return chan;
             })
-            .catch((err) => {
+            .catch(err => {
                 channels[channelKey] = undefined;
-
-                if (config.retryOnError(err)) {
-                    return timedPromise(1000)
-                        .then(() => carotte.getChannel(name, prefetch));
-                }
-
+                carotte.cleanExchangeCache();
                 throw err;
             });
 
@@ -234,8 +209,16 @@ function Carotte(config) {
             options = {};
         }
 
+        if (qualifier.startsWith('topic/')) {
+            const resubQualifier = qualifier.split('/');
+            qualifier = `topic/${resubQualifier[resubQualifier.length - 1]}`;
+        }
+
         options = Object.assign({ headers: {}, context: {} }, options, parseQualifier(qualifier));
-        options.headers['x-destination'] = qualifier;
+
+        if (!config.enableDeadLetter || config.deadLetterQualifier !== qualifier) {
+            options.headers['x-destination'] = qualifier;
+        }
 
         const exchangeName = getExchangeName(options);
         const rpc = options.headers['x-reply-to'] !== undefined;
@@ -244,7 +227,12 @@ function Carotte(config) {
         // isContentBuffer is used by internal functions who don't modify the content
         const buffer = options.isContentBuffer
             ? payload
-            : Buffer.from(JSON.stringify({ data: payload, context: options.context }));
+            : Buffer.from(JSON.stringify({
+                data: payload,
+                context: Object.assign({}, options.context, {
+                    transactionStack: getTransactionStack(options.context)
+                })
+            }));
 
         producerDebug('called');
         return carotte.getChannel()
@@ -265,22 +253,22 @@ function Carotte(config) {
                 return ok.then(() => {
                     producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
                     if (log) {
-                        config.transport.info(`${rpc ? '>> ' : '>  '} ${options.type}/${options.routingKey}`, {
+                        config.transport.info(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
                             context: options.context,
                             headers: options.headers,
-                            data: buffer.toString(),
-                            dataLength: buffer.length,
+                            request: payload,
                             subscriber: options.context['origin-consumer'] || '',
                             destination: qualifier
                         });
                     }
+
                     return chan.publish(
                         exchangeName,
                         options.routingKey,
                         buffer, {
                             headers: Object.assign({}, options.headers, {
                                 'x-carotte-version': carottePackage.version,
-                                'x-origin-service': carottePackage.name
+                                'x-origin-service': pkg.name
                             }),
                             contentType: 'application/json'
                         }
@@ -288,11 +276,10 @@ function Carotte(config) {
                 });
             })
             .catch(err => {
-                config.transport.error(`${rpc ? '>> ' : '>  '} ${options.type}/${options.routingKey}`, {
+                config.transport.error(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
                     context: options.context,
                     headers: options.headers,
-                    data: buffer.toString(),
-                    dataLength: buffer.length,
+                    request: payload,
                     subscriber: options.context['origin-consumer'] || '',
                     destination: qualifier,
                     error: err
@@ -301,6 +288,7 @@ function Carotte(config) {
                 if (err.message.match(errorToRetryRegex)) {
                     return carotte.publish(qualifier, options, payload);
                 }
+
                 throw err;
             });
     };
@@ -449,6 +437,14 @@ function Carotte(config) {
                 const bindedWith = options.routingKey || q.queue;
                 return chan.bindQueue(q.queue, exchangeName, bindedWith)
                 .then(() => {
+                    if (qualifier.startsWith('topic/')) {
+                        const resubQualifier = qualifier.split('/');
+                        return chan.bindQueue(q.queue, exchangeName,
+                            `${resubQualifier[resubQualifier.length - 1]}`);
+                    }
+                    return chan;
+                })
+                .then(() => {
                     consumerDebug(`${q.queue} binded on ${exchangeName} with ${bindedWith}`);
 
                     return chan.prefetch(options.prefetch)
@@ -463,8 +459,7 @@ function Carotte(config) {
                         const startTime = new Date().getTime();
                         const rpc = headers['x-reply-to'] !== undefined;
 
-                        headers['x-origin-consumer'] = qualifier;
-                        context['origin-consumer'] = qualifier;
+                        context['origin-consumer'] = headers['x-origin-consumer'];
 
                         // execute the handler inside a try catch block
                         return execInPromise(handler,
@@ -472,25 +467,28 @@ function Carotte(config) {
                                 data,
                                 headers,
                                 context,
-                                invoke: subPublication(context, 'invoke').bind(this),
-                                publish: subPublication(context, 'publish').bind(this),
-                                parallel: subPublication(context, 'parallel').bind(this)
+                                invoke: subPublication(context, 'invoke', qualifier).bind(this),
+                                publish: subPublication(context, 'publish', qualifier).bind(this),
+                                parallel: subPublication(context, 'parallel', qualifier).bind(this)
                             })
-                            .then(res => {
+                            .then(response => {
                                 const timeNow = new Date().getTime();
-                                autodocAgent.logStats(qualifier, timeNow - startTime, headers['x-origin-service']);
+                                autodocAgent.logStats(qualifier,
+                                    timeNow - startTime,
+                                    context['origin-consumer'] || headers['x-origin-service']);
                                 // send back response if needed
-                                return carotte.replyToPublisher(message, res, context);
+                                return carotte.replyToPublisher(message, response, context)
+                                    // forward response down the chain
+                                    .then(() => response);
                             })
-                        .then(() => {
+                        .then(response => {
                             consumerDebug('Handler success');
                             // otherwise internal subscribe (rpc…)
                             if (qualifier) {
-                                config.transport.info(`${rpc ? '<< ' : '<  '} ${qualifier}`, {
+                                config.transport.info(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                                     context,
                                     headers,
-                                    data: messageStr,
-                                    dataLength: message.content.length,
+                                    response,
                                     subscriber: qualifier,
                                     destination: '',
                                     executionMs: new Date().getTime() - startTime,
@@ -527,7 +525,7 @@ function Carotte(config) {
                 const pubOptions = messageToOptions(qualifier, message);
                 const rpc = headers['x-reply-to'] !== undefined;
 
-                config.transport.error(`${rpc ? '<< ' : '<  '} ${qualifier}`, {
+                config.transport.error(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                     context,
                     headers,
                     subscriber: qualifier,
@@ -624,6 +622,14 @@ function Carotte(config) {
         autodocAgent.ensureAutodocAgent(carotte);
     }
 
+    function logError(err) {
+        config.transport.error(err);
+        return err;
+    }
+
+    carotte.onError = logError;
+    carotte.onClose = logError;
+
     return carotte;
 }
 
@@ -633,12 +639,16 @@ function Carotte(config) {
  * @param  {string} method  The name of the carotte method to wrap
  * @return {Promise}        The wrapped method return value
  */
-function subPublication(context, method) {
+function subPublication(context, method, originQualifier) {
     return function (qualifier, options, ...params) {
         if (!params.length) {
             params.push(options);
             options = {};
         }
+
+        options.headers = Object.assign({}, options.headers, {
+            'x-origin-consumer': originQualifier
+        });
 
         options.context = Object.assign(context, options.context);
 

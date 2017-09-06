@@ -1,6 +1,5 @@
 deps:
 	yarn
-init:
 
 lint:
 	node_modules/.bin/eslint src tests
@@ -16,5 +15,8 @@ rabbitmq-stop:
 test:
 	node_modules/.bin/mocha tests/* src/**/*.spec.js
 
-test-cover: 
+test-watch:
+	node_modules/.bin/mocha -w tests/* src/**/*.spec.js
+
+test-cover:
 	node_modules/.bin/istanbul cover -x "src/**.spec.js" node_modules/.bin/_mocha -- tests/* src/**/*.spec.js
