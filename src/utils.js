@@ -1,3 +1,5 @@
+const configs = require('./configs');
+
 function createDeferred(timeout) {
     const deferred = {};
 
@@ -85,6 +87,63 @@ function serializeError(err) {
     return extend(extractedError, err);
 }
 
+/**
+ * Return queue name for destination (when debug mode enabled).
+ * Also able to modify queue options to make them non-durable, auto-delete
+ * @param  {string}} queue   The initial queue name
+ * @param  {object} [options] Provide amqp options for queue if you are subscribing
+ * @param  {string} tokenOverride override the config token with provided string
+ * @return {string}         The queue name to use for your call
+ */
+function getDebugQueueName(queue, options, tokenOverride) {
+    // debug token can be extracted from config (env) or context
+    const debugToken = tokenOverride || configs.debugToken;
+
+    if (!debugToken) {
+        return queue;
+    }
+
+    // if caller provides an option, it means he is probably subscribing
+    // so in case we set the queue as trashable (erase it on disconnect)
+    if (options) {
+        options.queue = options.queue || {};
+        options.queue.exclusive = true;
+        options.queue.durable = false;
+        options.queue.autoDelete = true;
+    }
+
+    return `${queue}:${debugToken}`;
+}
+
+/**
+ * Checks if queue exists in the broker and resolves with destination queue name
+ * @param  {object} carotte a carotte instance
+ * @param  {string} queue   The initial queue name
+ * @param  {object} context The context object
+ * @return {string}         The destination queue name
+ */
+function debugDestinationExists(carotte, queue, context) {
+    // only if there is a debug token and don't bother with RPC answers
+    const debugToken = context.debugToken || configs.debugToken;
+
+    if (debugToken && !queue.startsWith('amq.gen')) {
+        // get our trashable channel for existance check
+        // because amqp.lib trash the channel with checkQueue :D
+        return carotte.getChannel(debugToken, 1, true)
+            .then(channel => {
+                const dest = getDebugQueueName(queue, undefined, debugToken);
+                return channel.checkQueue(dest)
+                    .then(() => {
+                        // if it pass queue exists, we add token to context for future calls
+                        context.debugToken = debugToken;
+                        return dest;
+                    }).catch(err => queue);
+            });
+    }
+
+    return Promise.resolve(queue);
+}
+
 const emptyTransport = {
     log: noop,
     info: noop,
@@ -120,5 +179,7 @@ module.exports = {
     deserializeError,
     extend,
     emptyTransport,
-    getTransactionStack
+    getTransactionStack,
+    debugDestinationExists,
+    getDebugQueueName
 };
