@@ -123,9 +123,10 @@ function getDebugQueueName(queue, options, tokenOverride) {
  * @return {string}         The destination queue name
  */
 function debugDestinationExists(carotte, queue, context) {
-    // only if there is a debug token and don't bother with RPC answers
+    // only if there is a debug token
     const debugToken = context.debugToken || configs.debugToken;
 
+    // and don't bother with RPC answers
     if (debugToken && !queue.startsWith('amq.gen')) {
         // get our trashable channel for existance check
         // because amqp.lib trash the channel with checkQueue :D

@@ -182,6 +182,6 @@ This structure is also used in [carotte-dashboard](https://github.com/cubyn/caro
 
 
 ## Working together
-When multiple devs works on multiple microservices, you can use environment variables to be able to communicate with each others. To do so, the developers must set the `CAROTTE_DEBUG_TOKEN` env var to a common string before launching their services.
+When multiple devs are working on multiple microservices, you can use environment variables to be able to communicate with each other. To do so, the developers must set the `CAROTTE_DEBUG_TOKEN` env variable to a shared string before launching their services.
 
 carotte will then automatically reach each-others services.
