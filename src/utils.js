@@ -107,7 +107,6 @@ function getDebugQueueName(queue, options, tokenOverride) {
     // so in case we set the queue as trashable (erase it on disconnect)
     if (options) {
         options.queue = options.queue || {};
-        options.queue.exclusive = true;
         options.queue.durable = false;
         options.queue.autoDelete = true;
     }

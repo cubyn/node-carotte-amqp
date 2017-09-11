@@ -421,7 +421,11 @@ function Carotte(config) {
             options = {};
         }
 
-        qualifier = getDebugQueueName(qualifier, options);
+        // don't use debug queue on fanout exchange types as it has no effect
+        // it will likely bork the channel
+        if (qualifier !== 'fanout') {
+            qualifier = getDebugQueueName(qualifier, options);
+        }
 
         if (meta) {
             autodocAgent.addSubscriber(qualifier, meta);
