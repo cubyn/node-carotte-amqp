@@ -80,5 +80,6 @@ module.exports = {
     parseSubscriptionOptions,
     getPackageJson,
     getExchangeName,
-    getQueueName
+    getQueueName,
+    debugToken: process.env.CAROTTE_DEBUG_TOKEN
 };
