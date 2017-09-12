@@ -14,7 +14,9 @@ const {
     serializeError,
     extend,
     emptyTransport,
-    getTransactionStack
+    getTransactionStack,
+    debugDestinationExists,
+    getDebugQueueName
 } = require('./utils');
 const {
     parseQualifier,
@@ -102,7 +104,7 @@ function Carotte(config) {
      * @param {number} [prefetch] The channel prefetch settings
      * @return {promise} return the channel created
      */
-    carotte.getChannel = function getChannel(name = '', prefetch = 0) {
+    carotte.getChannel = function getChannel(name = '', prefetch = 0, isDebug = false) {
         prefetch = Number(prefetch);
         const channelKey = (prefetch > 0) ? `${name}:${prefetch}` : 0;
 
@@ -114,16 +116,19 @@ function Carotte(config) {
             .then(conn => conn.createChannel())
             .then(chan => { chan.prefetch(prefetch, (process.env.RABBITMQ_PREFETCH === 'legacy') ? undefined : true); return chan; })
             .then(chan => {
-                initDebug('channel created correctly');
+                initDebug(`channel ${channelKey} created correctly`);
                 chan.on('close', (err) => {
                     channels[channelKey] = undefined;
-                    carotte.cleanExchangeCache();
-                    carotte.onClose(err);
+                    if (!isDebug) {
+                        carotte.cleanExchangeCache();
+                        carotte.onClose(err);
+                    }
                 });
-                // this allow chan to throw on errors
-                chan.once('error', carotte.onError);
 
-                if (config.enableDeadLetter) {
+                // this allow chan to throw on errors
+                chan.once('error', !isDebug ? carotte.onError : () => {});
+
+                if (config.enableDeadLetter && !isDebug) {
                     return chan.assertQueue(config.deadLetterQualifier)
                         .then(q => chan.bindQueue(q.queue, 'amq.direct', q.queue))
                         .then(() => chan);
@@ -132,8 +137,10 @@ function Carotte(config) {
             })
             .catch(err => {
                 channels[channelKey] = undefined;
-                carotte.cleanExchangeCache();
-                throw err;
+                if (!isDebug) {
+                    carotte.cleanExchangeCache();
+                    throw err;
+                }
             });
 
         return channels[channelKey];
@@ -220,76 +227,81 @@ function Carotte(config) {
             options.headers['x-destination'] = qualifier;
         }
 
-        const exchangeName = getExchangeName(options);
-        const rpc = options.headers['x-reply-to'] !== undefined;
-        const { log = true } = options;
+        // get updated routing key for debug, if dest queue exists
+        return debugDestinationExists(carotte, options.routingKey, options.context)
+            .then(routingKey => {
+                const exchangeName = getExchangeName(options);
+                const rpc = options.headers['x-reply-to'] !== undefined;
+                const { log = true } = options;
 
-        // isContentBuffer is used by internal functions who don't modify the content
-        const buffer = options.isContentBuffer
-            ? payload
-            : Buffer.from(JSON.stringify({
-                data: payload,
-                context: Object.assign({}, options.context, {
-                    transactionStack: getTransactionStack(options.context)
-                })
-            }));
+                // isContentBuffer is used by internal functions who don't modify the content
+                const buffer = options.isContentBuffer
+                    ? payload
+                    : Buffer.from(JSON.stringify({
+                        data: payload,
+                        context: Object.assign({}, options.context, {
+                            transactionStack: getTransactionStack(options.context)
+                        })
+                    }));
 
-        producerDebug('called');
-        return carotte.getChannel()
-            .then(chan => {
-                let ok;
+                producerDebug('called');
 
-                if (!exchangeCache[exchangeName]) {
-                    producerDebug(`create exchange ${exchangeName}`);
-                    ok = chan.assertExchange(exchangeName, options.type, {
-                        durable: options.durable
-                    });
-                    exchangeCache[exchangeName] = ok;
-                } else {
-                    producerDebug(`use exchange ${exchangeName} from cache`);
-                    ok = exchangeCache[exchangeName];
-                }
+                return carotte.getChannel()
+                    .then(chan => {
+                        let ok;
 
-                return ok.then(() => {
-                    producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
-                    if (log) {
-                        config.transport.info(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
+                        if (!exchangeCache[exchangeName]) {
+                            producerDebug(`create exchange ${exchangeName}`);
+                            ok = chan.assertExchange(exchangeName, options.type, {
+                                durable: options.durable
+                            });
+                            exchangeCache[exchangeName] = ok;
+                        } else {
+                            producerDebug(`use exchange ${exchangeName} from cache`);
+                            ok = exchangeCache[exchangeName];
+                        }
+
+                        return ok.then(() => {
+                            producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
+                            if (log) {
+                                config.transport.info(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
+                                    context: options.context,
+                                    headers: options.headers,
+                                    request: payload,
+                                    subscriber: options.context['origin-consumer'] || '',
+                                    destination: qualifier
+                                });
+                            }
+
+                            return chan.publish(
+                                exchangeName,
+                                routingKey,
+                                buffer, {
+                                    headers: Object.assign({}, options.headers, {
+                                        'x-carotte-version': carottePackage.version,
+                                        'x-origin-service': pkg.name
+                                    }),
+                                    contentType: 'application/json'
+                                }
+                            );
+                        });
+                    })
+                    .catch(err => {
+                        config.transport.error(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
                             context: options.context,
                             headers: options.headers,
                             request: payload,
                             subscriber: options.context['origin-consumer'] || '',
-                            destination: qualifier
+                            destination: qualifier,
+                            error: err
                         });
-                    }
 
-                    return chan.publish(
-                        exchangeName,
-                        options.routingKey,
-                        buffer, {
-                            headers: Object.assign({}, options.headers, {
-                                'x-carotte-version': carottePackage.version,
-                                'x-origin-service': pkg.name
-                            }),
-                            contentType: 'application/json'
+                        if (err.message.match(errorToRetryRegex)) {
+                            return carotte.publish(qualifier, options, payload);
                         }
-                    );
-                });
-            })
-            .catch(err => {
-                config.transport.error(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
-                    context: options.context,
-                    headers: options.headers,
-                    request: payload,
-                    subscriber: options.context['origin-consumer'] || '',
-                    destination: qualifier,
-                    error: err
-                });
 
-                if (err.message.match(errorToRetryRegex)) {
-                    return carotte.publish(qualifier, options, payload);
-                }
-
-                throw err;
+                        throw err;
+                    });
             });
     };
 
@@ -409,6 +421,12 @@ function Carotte(config) {
             options = {};
         }
 
+        // don't use debug queue on fanout exchange types as it has no effect
+        // it will likely bork the channel
+        if (qualifier !== 'fanout') {
+            qualifier = getDebugQueueName(qualifier, options);
+        }
+
         if (meta) {
             autodocAgent.addSubscriber(qualifier, meta);
             if (config.autoDescribe) {
@@ -517,7 +535,7 @@ function Carotte(config) {
     carotte.handleRetry =
     function handleRetry(qualifier, options, meta = {}, headers, context, message) {
         return err => {
-            return carotte.getChannel(qualifier, options.prefetch)
+            return carotte.getChannel()
             .then(chan => {
                 const retry = meta.retry || { max: 5, strategy: 'exponential', interval: 1 };
 

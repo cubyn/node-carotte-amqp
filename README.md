@@ -18,6 +18,7 @@ It is part of a lightweight microservice framework that we are cooking here at C
   - Tiny (depends on amqplib, debug, and puid)
   - Built-in [distributed tracing](http://microservices.io/patterns/observability/distributed-tracing.html), see doc
   - Provide your own transport to log every microservice message
+  - Allow to share your environments and services between developers without launching the whole stack
 
 **Compatible with**:
   - Auto-documentation of your microservices with [carotte-dashboard](https://github.com/cubyn/carotte-dashboard)
@@ -178,3 +179,9 @@ carotte.invoke('direct/increment:describe')
 ```
 
 This structure is also used in [carotte-dashboard](https://github.com/cubyn/carotte-dashboard) to auto-document your microservices architecture. You can find more information about how it works on the dashboard repository.
+
+
+## Working together
+When multiple devs are working on multiple microservices, you can use environment variables to be able to communicate with each other. To do so, the developers must set the `CAROTTE_DEBUG_TOKEN` env variable to a shared string before launching their services.
+
+carotte will then automatically reach each-others services.
