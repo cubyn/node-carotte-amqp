@@ -535,7 +535,9 @@ function Carotte(config) {
     carotte.handleRetry =
     function handleRetry(qualifier, options, meta = {}, headers, context, message) {
         return err => {
-            return carotte.getChannel()
+            // we MUST be on the same channel than the subscriber to ack a message
+            // otherwise channel is borked =)
+            return carotte.getChannel(qualifier, options.prefetch)
             .then(chan => {
                 const retry = meta.retry || { max: 5, strategy: 'exponential', interval: 1 };
 
