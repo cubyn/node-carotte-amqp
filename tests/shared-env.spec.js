@@ -30,6 +30,60 @@ describe('shared env', () => {
             });
     });
 
+    it('should be able to communicate with overloaded service using context', async () => {
+        await carotte.subscribe('direct/random-queue-aihi', { queue: { exclusive: true } }, ({ data }) => {
+            return 3;
+        });
+
+        await carotte.subscribe('direct/random-queue-aihi', { queue: { exclusive: true } }, ({ data }) => {
+            return 2;
+        });
+
+        configs.debugToken = 'Can do';
+
+        await carotte.subscribe('direct/random-queue-aihi', { queue: { exclusive: true } }, ({ data }) => {
+            return 4;
+        });
+
+        configs.debugToken = '';
+
+        return carotte.invoke('direct/random-queue-aihi', { context: { debugToken: 'Can do' } }, {})
+            .then(data => {
+                expect(data).to.eql(4);
+            });
+    });
+
+    it('should fallback to default queue when debug queue does not exists', async () => {
+        await carotte.subscribe('direct/random-queue-aihie2', { queue: { exclusive: true } }, ({ data }) => {
+            return 2;
+        });
+
+        await carotte.subscribe('direct/random-queue-aihie2', { queue: { exclusive: true } }, ({ data }) => {
+            return 2;
+        });
+
+        configs.debugToken = 'I can\'t do it';
+        return carotte.invoke('direct/random-queue-aihie2', {})
+            .then(data => {
+                expect(data).to.eql(2);
+            });
+    });
+
+    it('should fallback to default queue when debug queue does not exists', async () => {
+        await carotte.subscribe('direct/random-queue-aihie3', { queue: { exclusive: true } }, ({ invoke }) => {
+            return invoke('direct/random-queue-aihie4');
+        });
+
+        await carotte.subscribe('direct/random-queue-aihie4', { queue: { exclusive: true } }, ({ data }) => {
+            return 3;
+        });
+
+        return carotte.invoke('direct/random-queue-aihie3', { context: { debugToken: 'Can do!' } }, {})
+            .then(data => {
+                expect(data).to.eql(3);
+            });
+    });
+
 
     it('should be able to propagate debug token accross calls', async () => {
         // this will be our regular service, not using tokens
