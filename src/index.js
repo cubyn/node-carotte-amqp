@@ -479,6 +479,11 @@ function Carotte(config) {
 
                         context['origin-consumer'] = headers['x-origin-consumer'];
 
+                        if (message.fields.redelivered) {
+                            return carotte.handleRetry(qualifier, options, meta,
+                                headers, context, message)(new Error('Unhandled message'));
+                        }
+
                         // execute the handler inside a try catch block
                         return execInPromise(handler,
                             {
@@ -517,7 +522,7 @@ function Carotte(config) {
                             return chan.ack(message);
                         })
                         .catch(carotte.handleRetry(qualifier, options, meta,
-                            headers, context, message).bind(this));
+                            headers, context, message));
                     }))
                     .then(() => chan.prefetch(0))
                     .then(identity(q));
