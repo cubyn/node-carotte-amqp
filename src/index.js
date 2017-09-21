@@ -479,6 +479,10 @@ function Carotte(config) {
 
                         context['origin-consumer'] = headers['x-origin-consumer'];
 
+                        if (context.error) {
+                            context.error = deserializeError(context.error);
+                        }
+
                         if (message.fields.redelivered) {
                             return carotte.handleRetry(qualifier, options, meta,
                                 headers, context, message)(new Error('Unhandled message'));
@@ -584,7 +588,7 @@ function Carotte(config) {
 
                 // publish the message to the dead-letter queue
                 // remove exchange options because we manage this queue ourselves
-                return carotte.saveDeadLetterIfNeeded(message)
+                return carotte.saveDeadLetterIfNeeded(message, err)
                     .then(() => {
                         message.properties.headers = cleanRetryHeaders(
                             message.properties.headers
@@ -602,11 +606,16 @@ function Carotte(config) {
      * @param {object} message - amqplib message
      * @return {promise}
      */
-    carotte.saveDeadLetterIfNeeded = function saveDeadLetterIfNeeded(message) {
+    carotte.saveDeadLetterIfNeeded = function saveDeadLetterIfNeeded(message, error) {
         if (config.enableDeadLetter) {
+            const headers = message.properties.headers;
+            const content = JSON.parse(message.content.toString());
+            content.context.error = serializeError(error);
+
+            // we use content buffer so we don't have to alter object structure
+            // { data: , context: }
             return carotte.publish(config.deadLetterQualifier,
-                { headers: message.properties.headers, isContentBuffer: true },
-                message.content);
+                { headers, isContentBuffer: true }, Buffer.from(JSON.stringify(content)));
         }
         return Promise.resolve();
     };
