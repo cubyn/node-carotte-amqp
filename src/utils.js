@@ -96,7 +96,7 @@ function serializeError(err) {
  * @return {string}         The queue name to use for your call
  */
 function getDebugQueueName(queue, options, tokenOverride) {
-    if (process.env.NODE_ENV === 'production') return queue;
+    if (process.env.NODE_ENV === 'production' || queue === '') return queue;
 
     // debug token can be extracted from config (env) or context
     const debugToken = tokenOverride || configs.debugToken;
