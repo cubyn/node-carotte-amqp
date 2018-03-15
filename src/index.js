@@ -172,7 +172,12 @@ function Carotte(config) {
                     // clear the RPC timeout interval if set
                     clearInterval(deferred.timeoutFunction);
 
-                    Object.assign(deferred.context, context);
+                    // rpc should not touch transaction context props of parent
+                    const transactionProperties = {
+                        transactionStack: deferred.context.transactionStack,
+                        transactionId: deferred.context.transactionId
+                    };
+                    Object.assign(deferred.context, context, transactionProperties);
 
                     const returnObject = {
                         headers,
