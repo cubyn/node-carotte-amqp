@@ -119,6 +119,7 @@ function Carotte(config) {
                 initDebug(`channel ${channelKey} created correctly`);
                 chan.on('close', (err) => {
                     channels[channelKey] = undefined;
+                    replyToSubscription = undefined;
                     if (!isDebug) {
                         carotte.cleanExchangeCache();
                         carotte.onClose(err);
@@ -137,6 +138,7 @@ function Carotte(config) {
             })
             .catch(err => {
                 channels[channelKey] = undefined;
+                replyToSubscription = undefined;
                 if (!isDebug) {
                     carotte.cleanExchangeCache();
                     throw err;
@@ -172,7 +174,12 @@ function Carotte(config) {
                     // clear the RPC timeout interval if set
                     clearInterval(deferred.timeoutFunction);
 
-                    Object.assign(deferred.context, context);
+                    // rpc should not touch transaction context props of parent
+                    const transactionProperties = {
+                        transactionStack: deferred.context.transactionStack,
+                        transactionId: deferred.context.transactionId
+                    };
+                    Object.assign(deferred.context, context, transactionProperties);
 
                     const returnObject = {
                         headers,
@@ -543,7 +550,11 @@ function Carotte(config) {
      */
     carotte.handleRetry =
     function handleRetry(qualifier, options, meta = {}, headers, context, message) {
-        return err => {
+        return error => {
+            const err = (error instanceof Error)
+                ? error
+                : new Error(error);
+
             // we MUST be on the same channel than the subscriber to ack a message
             // otherwise channel is borked =)
             return carotte.getChannel(qualifier, options.prefetch)

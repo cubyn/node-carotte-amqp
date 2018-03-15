@@ -63,53 +63,72 @@ describe('subscriber', () => {
         });
     });
 
-    describe('republish', () => {
-        it('should republish a message if subscriber fails', done => {
+    describe('when the subscriber fails', () => {
+        it('should republish a message', (done) => {
             let callCount = 0;
             carotte.subscribe('direct/republish', { queue: { exclusive: true } }, ({ data }) => {
-                if (callCount === 1) return done();
-                callCount++;
-                throw new Error('An error occured');
+                switch (callCount) {
+                    case 0:
+                        callCount++;
+                        throw new Error('An error occured');
+                    case 1:
+                        callCount++;
+                        throw 'An error occured'; // eslint-disable-line no-throw-literal
+                    case 2:
+                        callCount++;
+                        throw { hello: 'stacktrace' }; // eslint-disable-line no-throw-literal
+                    case 3:
+                        callCount++;
+                        throw 42; // eslint-disable-line no-throw-literal
+                    case 4:
+                        callCount++;
+                        throw undefined; // eslint-disable-line no-throw-literal
+                    default:
+                        callCount++;
+                        return done();
+                }
             })
             .then(() => carotte.publish('direct/republish', { hello: 'world' }));
         });
-    });
 
-    describe('retry', () => {
-        it('should retry when retry is specified', done => {
-            let callCount = 0;
-            carotte.subscribe('bye', { exclusive: true }, () => {
-                callCount++;
-                if (callCount === 4) {
-                    setTimeout(done, 500);
-                } else if (callCount > 4) {
-                    done(new Error('CallCount > 4'));
-                } else {
-                    throw new Error();
-                }
-            }, { retry: { max: 3, interval: 0, strategy: 'direct' } })
-            .then(() => carotte.publish('bye', {}));
-        });
+        describe('when a retry policy is specified', () => {
+            it('should retry', (done) => {
+                let callCount = 0;
+                carotte.subscribe('bye', { exclusive: true }, () => {
+                    callCount++;
+                    if (callCount === 4) {
+                        setTimeout(done, 500);
+                    } else if (callCount > 4) {
+                        done.fail(new Error('CallCount > 4'));
+                    } else {
+                        throw new Error();
+                    }
+                }, { retry: { max: 3, interval: 0, strategy: 'direct' } })
+                .then(() => carotte.publish('bye', {}));
+            });
 
-        it('should not retry when retry is specified but error with status is thrown', () => {
-            let callCount = 0;
-            return carotte.subscribe('bye2', { exclusive: true }, () => {
-                callCount++;
-                if (callCount === 1) {
-                    throw new Error('Should not be called a second time');
-                } else {
-                    const err = new Error();
-                    err.status = 400;
-                    throw err;
-                }
-            }, { retry: { max: 3, interval: 0, strategy: 'direct' } })
-            .then(() => carotte.invoke('bye2', {}))
-            .then(() => {
-                throw new Error('Should not succeed');
-            })
-            .catch((err) => {
-                expect(err.status).to.eql(400);
-                expect(err.message).to.not.eql('Should not be called a second time');
+            describe('when the thrown error has a status attribute', () => {
+                it('should not retry', () => {
+                    let callCount = 0;
+                    return carotte.subscribe('bye2', { exclusive: true }, () => {
+                        callCount++;
+                        if (callCount === 1) {
+                            throw new Error('Should not be called a second time');
+                        } else {
+                            const err = new Error();
+                            err.status = 400;
+                            throw err;
+                        }
+                    }, { retry: { max: 3, interval: 0, strategy: 'direct' } })
+                    .then(() => carotte.invoke('bye2', {}))
+                    .then(() => {
+                        throw new Error('Should not succeed');
+                    })
+                    .catch((err) => {
+                        expect(err.status).to.eql(400);
+                        expect(err.message).to.not.eql('Should not be called a second time');
+                    });
+                });
             });
         });
     });

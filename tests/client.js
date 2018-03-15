@@ -1,5 +1,5 @@
 const defaults = {
-    host: process.env.AMQP_HOST
+    host: process.env.AMQP_HOST || 'localhost'
 };
 
 const builder = require('../src');

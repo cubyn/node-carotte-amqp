@@ -7,31 +7,33 @@ describe('Local transactionId', () => {
     const options = { queue: { exclusive: true } };
 
     it('should create a transactionStack when it\'s not defined', async () => {
-        await carotte.subscribe('stack-test-1-1', options, ({ context }) => {
-            expect(context).to.be.defined;
-            expect(context.transactionStack).to.be.defined;
-            expect(context.transactionStack).to.be.an('array');
-            expect(context.transactionStack).to.have.length(1);
-        });
+        await carotte.subscribe('stack-test-1-1', options,
+            ({ context }) => context.transactionStack);
 
-        await carotte.invoke('stack-test-1-1', { context: {} }, {});
+        const context = {};
+        const subStack1 = await carotte.invoke('stack-test-1-1', { context }, {});
+        expect(subStack1).to.have.length(1);
+
+        const subStack2 = await carotte.invoke('stack-test-1-1', { context }, {});
+        expect(subStack2).to.have.length(1);
+        // subcalls should have different transaction stack ids
+        expect(subStack2).to.not.deep.eql(subStack1);
+
+        // subcalls should not pollute parent context transaction props
+        expect(context.transactionStack).to.not.exist;
     });
 
     it('should add new transactionStack id to transactionStack', async () => {
-        await carotte.subscribe('stack-test-2-1', {
-            queue: { exclusive: true }
-        }, ({ context }) => {
-            expect(context).to.be.defined;
-            expect(context.transactionStack).to.be.defined;
-            expect(context.transactionStack).to.be.an('array');
-            expect(context.transactionStack).to.have.length(4);
-        });
+        await carotte.subscribe('stack-test-2-1', options,
+            ({ context }) => context.transactionStack);
 
-        await carotte.invoke('stack-test-2-1', {
-            context: {
-                transactionStack: ['1234', '5678', '9012']
-            }
-        }, {});
+        const transactionStack = ['a', 'b'];
+        const context = { transactionStack };
+        const subStack = await carotte.invoke('stack-test-2-1', { context }, {});
+
+        expect(context.transactionStack).to.have.length(2);
+        expect(subStack).to.include.members(transactionStack);
+        expect(subStack).to.have.length(3);
     });
 
     it('should add transactionStack ids in cascade', async () => {
