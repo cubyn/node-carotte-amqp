@@ -119,6 +119,7 @@ function Carotte(config) {
                 initDebug(`channel ${channelKey} created correctly`);
                 chan.on('close', (err) => {
                     channels[channelKey] = undefined;
+                    replyToSubscription = undefined;
                     if (!isDebug) {
                         carotte.cleanExchangeCache();
                         carotte.onClose(err);
@@ -137,6 +138,7 @@ function Carotte(config) {
             })
             .catch(err => {
                 channels[channelKey] = undefined;
+                replyToSubscription = undefined;
                 if (!isDebug) {
                     carotte.cleanExchangeCache();
                     throw err;
