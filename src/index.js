@@ -553,7 +553,7 @@ function Carotte(config) {
         return error => {
             const err = (error instanceof Error)
                 ? error
-                : new Error(error);
+                : new Error(error && error.message || error);
 
             // we MUST be on the same channel than the subscriber to ack a message
             // otherwise channel is borked =)
