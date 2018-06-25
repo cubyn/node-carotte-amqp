@@ -490,7 +490,7 @@ function Carotte(config) {
                             context.error = deserializeError(context.error);
                         }
 
-                        if (message.fields.redelivered) {
+                        if (message.fields.redelivered && !headers['x-ignore-redeliver']) {
                             return carotte.handleRetry(qualifier, options, meta,
                                 headers, context, message)(new Error('Unhandled message'));
                         }
@@ -553,7 +553,7 @@ function Carotte(config) {
         return error => {
             const err = (error instanceof Error)
                 ? error
-                : new Error(error);
+                : new Error(error && error.message || error);
 
             // we MUST be on the same channel than the subscriber to ack a message
             // otherwise channel is borked =)
@@ -622,6 +622,8 @@ function Carotte(config) {
             const headers = message.properties.headers;
             const content = JSON.parse(message.content.toString());
             content.context.error = serializeError(error);
+
+            headers['x-ignore-redeliver'] = true;
 
             // we use content buffer so we don't have to alter object structure
             // { data: , context: }
