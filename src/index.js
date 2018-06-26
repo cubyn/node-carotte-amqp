@@ -1,6 +1,7 @@
 const debug = require('debug');
 const Puid = require('puid');
 const amqp = require('amqplib');
+
 const autodocAgent = require('./autodoc-agent');
 const describe = require('./describe');
 const carottePackage = require('../package');
@@ -551,9 +552,9 @@ function Carotte(config) {
     carotte.handleRetry =
     function handleRetry(qualifier, options, meta = {}, headers, context, message) {
         return error => {
-            const err = (error instanceof Error)
+            const err = (typeof error === 'object')
                 ? error
-                : new Error(error && error.message || error);
+                : new Error(error);
 
             // we MUST be on the same channel than the subscriber to ack a message
             // otherwise channel is borked =)
