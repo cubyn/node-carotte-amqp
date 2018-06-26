@@ -1,20 +1,24 @@
 {
   "name": "carotte-amqp",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "description": "AMQP wrapper for the carotte microservice framework",
   "main": "src/index.js",
   "repository": "https://github.com/cubyn/node-carotte-amqp",
   "author": "nbeydoon <nori@cubyn.com>",
-  "maintainers": ["nbeydoon <nori@cubyn.com>", "jonathan <jonathan@cubyn.com>"],
+  "maintainers": [
+    "nbeydoon <nori@cubyn.com>",
+    "jonathan <jonathan@cubyn.com>"
+  ],
   "license": "GNU 3",
   "scripts": {
-      "test": "make test",
-      "lint": "make lint"
+    "test": "make test",
+    "lint": "make lint"
   },
   "dependencies": {
     "amqplib": "^0.5.1",
     "debug": "^2.6.0",
-    "puid": "^1.0.5"
+    "puid": "^1.0.5",
+    "safe-clone-deep": "^1.1.5"
   },
   "devDependencies": {
     "chai": "^3.5.0",
