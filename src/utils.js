@@ -1,3 +1,4 @@
+const clone = require('safe-clone-deep');
 const configs = require('./configs');
 
 function createDeferred(timeout) {
@@ -78,6 +79,8 @@ function deserializeError(inputError) {
 
 function serializeError(err) {
     var extractedError = {};
+
+    err = clone(err);
 
     // properties of err can be non enumerable
     Object.getOwnPropertyNames(err).forEach(key => {
