@@ -1,4 +1,7 @@
-# carotte-amqp
+carotte-amqp
+============
+
+[![CircleCI](https://circleci.com/gh/cubyn/node-carotte-amqp.svg?style=svg)](https://circleci.com/gh/cubyn/node-carotte-amqp)
 
 [![npm version](https://badge.fury.io/js/carotte-amqp.svg)](https://badge.fury.io/js/carotte-amqp)
 
