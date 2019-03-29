@@ -1,0 +1,47 @@
+version: 2
+jobs:
+  test:
+    docker:
+      - image: cubyn/node:ci-7
+      - image: rabbitmq:3.6-alpine
+        name: broker
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-cache-{{ checksum "package.json" }}
+      - run:
+          name: Vendors
+          command: |
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+            make deps
+      - save_cache:
+          key: deps-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+            - ~/.cache/yarn
+      - run:
+          name: Lint
+          command: make lint
+      - run:
+          name: Tests
+          command: |
+            AMQP_HOST=broker:5672 make test-cover
+            mkdir -p /tmp/workspace
+            cp -R coverage /tmp/workspace/coverage
+          # environment:
+          #   JEST_JUNIT_OUTPUT: "/tmp/test-results/junit.xml"
+      - persist_to_workspace:
+          root: /tmp/workspace
+          paths:
+            - coverage
+      # - store_test_results:
+      #     path: /tmp/test-results
+      - store_artifacts:
+          path: coverage
+
+workflows:
+  version: 2
+  "default":
+    jobs:
+      - test:
+          context: cubyn_services
