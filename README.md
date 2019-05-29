@@ -23,11 +23,6 @@ It is part of a lightweight microservice framework that we are cooking here at C
   - Provide your own transport to log every microservice message
   - Allow to share your environments and services between developers without launching the whole stack
 
-**Compatible with**:
-  - Auto-documentation of your microservices with [carotte-dashboard](https://github.com/cubyn/carotte-dashboard)
-  - A [cli](https://github.com/cubyn/carotte-cli) to easily call your services from the shell
-  - A [loader](https://github.com/cubyn/node-carotte-loader) to uniformize your microservices structure
-
 ## Sample usage
 
 Only basic usage is covered here, you can browse the [examples folder](https://github.com/cubyn/node-carotte-amqp/tree/master/examples) on the repo for more use-cases.
