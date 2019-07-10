@@ -560,7 +560,7 @@ function Carotte(config) {
             // otherwise channel is borked =)
             return carotte.getChannel(qualifier, options.prefetch)
             .then(chan => {
-                const retry = meta.retry || { max: 5, strategy: 'exponential', interval: 1 };
+                const retry = meta.retry || { max: 5, strategy: 'direct', interval: 0 };
 
                 const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
                 const pubOptions = messageToOptions(qualifier, message);
@@ -584,7 +584,7 @@ function Carotte(config) {
                 if (retry.max > 0 && currentRetry <= retry.max) {
                     consumerDebug(`Handler error: trying again with strategy ${retry.strategy}`);
                     const rePublishOptions = incrementRetryHeaders(pubOptions, retry);
-                    const nextCallDelay = computeNextCall(pubOptions);
+                    const nextCallDelay = computeNextCall(pubOptions.headers);
 
                     return setTimeout(() => {
                         carotte.publish(qualifier, rePublishOptions, message.content)
@@ -769,7 +769,7 @@ function cleanRetryHeaders(headers) {
 function computeNextCall(headers) {
     const strategy = headers['x-retry-strategy'];
     const current = Number(headers['x-retry-count']);
-    const interval = Number(headers['x-retry-interval']);
+    const interval = Number(headers['x-retry-interval'] || 0);
 
     switch (strategy) {
         case 'exponential': {
