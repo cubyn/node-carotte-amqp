@@ -1,4 +1,7 @@
-# carotte-amqp
+carotte-amqp
+============
+
+[![CircleCI](https://circleci.com/gh/cubyn/node-carotte-amqp.svg?style=svg)](https://circleci.com/gh/cubyn/node-carotte-amqp)
 
 [![npm version](https://badge.fury.io/js/carotte-amqp.svg)](https://badge.fury.io/js/carotte-amqp)
 
@@ -19,11 +22,6 @@ It is part of a lightweight microservice framework that we are cooking here at C
   - Built-in [distributed tracing](http://microservices.io/patterns/observability/distributed-tracing.html), see doc
   - Provide your own transport to log every microservice message
   - Allow to share your environments and services between developers without launching the whole stack
-
-**Compatible with**:
-  - Auto-documentation of your microservices with [carotte-dashboard](https://github.com/cubyn/carotte-dashboard)
-  - A [cli](https://github.com/cubyn/carotte-cli) to easily call your services from the shell
-  - A [loader](https://github.com/cubyn/node-carotte-loader) to uniformize your microservices structure
 
 ## Sample usage
 

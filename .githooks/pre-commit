@@ -1,0 +1,21 @@
+#!/bin/sh
+rc=0
+for file in $(git diff --staged --name-only --diff-filter=ACMR); do
+    fileext=${file##*.}
+    case $fileext in
+        js)
+            ./node_modules/.bin/eslint $file
+            if [ $? -ne 0 ]; then
+                echo "$file not well formatted."
+                rc=1
+            fi
+            ;;
+        *) ;;
+    esac
+done
+
+if [ $rc -ne 0 ]; then
+    echo "Some errors prevents committing."
+fi
+
+exit $rc
