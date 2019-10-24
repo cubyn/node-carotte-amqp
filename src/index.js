@@ -68,6 +68,7 @@ function Carotte(config) {
 
     let exchangeCache = {};
     const correlationIdCache = {};
+    const consumers = [];
 
     let replyToSubscription;
     let connexion;
@@ -536,6 +537,10 @@ function Carotte(config) {
                         .catch(carotte.handleRetry(qualifier, options, meta,
                             headers, context, message));
                     }))
+                    .then(consumer => consumers.push({
+                        consumerTag: consumer.consumerTag,
+                        chan
+                    }))
                     .then(() => chan.prefetch(0))
                     .then(identity(q));
                 });
@@ -664,6 +669,12 @@ function Carotte(config) {
             }, payload);
         }
         return Promise.resolve();
+    };
+
+    carotte.shutdown = function shutdown() {
+        return Promise.all(consumers.map(
+            consumer => consumer.chan.cancel(consumer.consumerTag)
+        ));
     };
 
     if (config.enableAutodoc) {
