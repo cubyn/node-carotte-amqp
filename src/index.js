@@ -557,6 +557,10 @@ function Carotte(config) {
                             throw error;
                         });
                     }))
+                    .then(consumer => consumers.push({
+                        consumerTag: consumer.consumerTag,
+                        chan
+                    }))
                     .then(() => chan.prefetch(0))
                     .then(identity(q));
                 });
