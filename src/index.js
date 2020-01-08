@@ -88,7 +88,7 @@ function Carotte(config) {
                 connexion = undefined;
                 channels = {};
                 carotte.cleanExchangeCache();
-                carotte.onClose(err);
+                carotte.onConnectionClose(err);
             });
             conn.once('error', carotte.onError);
 
@@ -128,7 +128,7 @@ function Carotte(config) {
                     replyToSubscription = undefined;
                     if (!isDebug) {
                         carotte.cleanExchangeCache();
-                        carotte.onClose(err);
+                        carotte.onChannelClose(err);
                     }
                 });
 
@@ -750,7 +750,8 @@ function Carotte(config) {
     }
 
     carotte.onError = logError;
-    carotte.onClose = logError;
+    carotte.onChannelClose = logError;
+    carotte.onConnectionClose = logError;
 
     return carotte;
 }
