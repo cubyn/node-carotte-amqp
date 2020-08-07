@@ -1,8 +1,9 @@
 {
   "name": "carotte-amqp",
-  "version": "2.3.5",
+  "version": "2.4.0-beta.3",
   "description": "AMQP wrapper for the carotte microservice framework",
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "repository": "https://github.com/cubyn/node-carotte-amqp",
   "author": "nbeydoon <nori@cubyn.com>",
   "maintainers": [

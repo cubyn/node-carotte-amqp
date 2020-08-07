@@ -4,6 +4,7 @@ const amqp = require('amqplib');
 
 const autodocAgent = require('./autodoc-agent');
 const describe = require('./describe');
+const MessageRegister = require('./message-register');
 const carottePackage = require('../package');
 
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
@@ -69,6 +70,10 @@ function Carotte(config) {
     let exchangeCache = {};
     const correlationIdCache = {};
 
+    const consumers = [];
+    const messageRegister = new MessageRegister();
+    let shutdownPromise = null;
+
     let replyToSubscription;
     let connexion;
     let channels = {};
@@ -83,7 +88,7 @@ function Carotte(config) {
                 connexion = undefined;
                 channels = {};
                 carotte.cleanExchangeCache();
-                carotte.onClose(err);
+                carotte.onConnectionClose(err);
             });
             conn.once('error', carotte.onError);
 
@@ -123,7 +128,7 @@ function Carotte(config) {
                     replyToSubscription = undefined;
                     if (!isDebug) {
                         carotte.cleanExchangeCache();
-                        carotte.onClose(err);
+                        carotte.onChannelClose(err);
                     }
                 });
 
@@ -476,6 +481,8 @@ function Carotte(config) {
                     return chan.prefetch(options.prefetch)
                     .then(() => chan.consume(q.queue, message => {
                         consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
+                        messageRegister.start(qualifier);
+
                         const { headers } = message.properties;
 
                         const messageStr = message.content.toString();
@@ -493,7 +500,14 @@ function Carotte(config) {
 
                         if (message.fields.redelivered && !headers['x-ignore-redeliver']) {
                             return carotte.handleRetry(qualifier, options, meta,
-                                headers, context, message)(new Error('Unhandled message'));
+                                headers, context, message)(new Error('Unhandled message'))
+                                .then(result => {
+                                    messageRegister.finish(qualifier);
+                                    return result;
+                                }, error => {
+                                    messageRegister.finish(qualifier);
+                                    throw error;
+                                });
                         }
 
                         // execute the handler inside a try catch block
@@ -534,7 +548,18 @@ function Carotte(config) {
                             return chan.ack(message);
                         })
                         .catch(carotte.handleRetry(qualifier, options, meta,
-                            headers, context, message));
+                            headers, context, message))
+                        .then(result => {
+                            messageRegister.finish(qualifier);
+                            return result;
+                        }, error => {
+                            messageRegister.finish(qualifier);
+                            throw error;
+                        });
+                    }))
+                    .then(consumer => consumers.push({
+                        consumerTag: consumer.consumerTag,
+                        chan
                     }))
                     .then(() => chan.prefetch(0))
                     .then(identity(q));
@@ -666,17 +691,67 @@ function Carotte(config) {
         return Promise.resolve();
     };
 
+    /**
+     * Gracefully shutdown carotte:
+     * 1. unsubscribe consumers from all channels
+     * 2. await current messages being processed
+     * 3. close RMQ connection
+
+     * @param  {Number} timeout
+     *         if 0 no timeout when awaiting current messages
+     *         (risks of process hanging if consumer won't resolve)
+     * @return {Promise<Array<String>, Error>}
+     *         if success - returns an array of qualifiers
+     *             having been succesfully awaited
+     *         if error - rejects MessageWaitTimeoutError
+     *             containing messages that have timed out
+     */
+    carotte.shutdown = function shutdown(timeout = 0) {
+        if (shutdownPromise) return shutdownPromise;
+
+        // unsubscribe for any new message
+        const unsubscribeAll = consumers.map(
+            consumer => consumer.chan.cancel(consumer.consumerTag)
+        );
+
+        let awaitError;
+        let awaitedMessages;
+
+        shutdownPromise =
+            // unsubscribe from all queues
+            Promise.all(unsubscribeAll)
+            // wait for current messages to be acked or nacked
+            .then(() => messageRegister.wait(timeout))
+            .then(messages => (awaitedMessages = messages))
+            // in case we could not wait for all messages,
+            // we still need to go on closing RMQ connection
+            .catch(error => (awaitError = error))
+            // finally close RMQ TCP connection
+            .then(() => connexion)
+            .then(c => c.close())
+            .then(() => {
+                if (awaitError) throw awaitError;
+                return awaitedMessages;
+            });
+
+        return shutdownPromise;
+    };
+
     if (config.enableAutodoc) {
         autodocAgent.ensureAutodocAgent(carotte);
     }
 
-    function logError(err) {
-        config.transport.error(err);
-        return err;
+    function logError(error) {
+        // when close is initiated by .close(), amqplib
+        // emits 'close' without any error
+        if (error) config.transport.error(error);
+
+        return error;
     }
 
     carotte.onError = logError;
-    carotte.onClose = logError;
+    carotte.onChannelClose = logError;
+    carotte.onConnectionClose = logError;
 
     return carotte;
 }
