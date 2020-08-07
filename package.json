@@ -16,6 +16,7 @@
     "lint": "make lint"
   },
   "dependencies": {
+    "@types/amqplib": "^0.5.13",
     "amqplib": "^0.5.3",
     "debug": "^2.6.0",
     "puid": "^1.0.5",
