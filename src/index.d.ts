@@ -80,13 +80,13 @@ declare namespace CarotteAmqp {
     getChannel: (name?: string, prefetch?: number, isDebug?: boolean) => Promise<AmqpLibChannel>;
     cleanExchangeCache: () => void;
     clearParallel: (parallelId: ParallelId) => void;
-    invokeWithFullResponse: (qualifier: Qualifier, options: any, payload: any) => Promise<void>;
+    invokeWithFullResponse: (qualifier: Qualifier, options: any, payload: any) => Promise<any>;
     // Arguments shift
     subscribe: (qualifier: Qualifier, options: SubscribeOptions | HandlerFunction, handler?: HandlerFunction | SubscribeMeta, meta?: SubscribeMeta) => Promise<any>;
     parallel: (qualifier: Qualifier, options: any, payload: any, callback: Function) => Promise<ParallelId>;
-    publish: (qualifier: Qualifier, options: any, payload: any) => Promise<void>;
+    publish: (qualifier: Qualifier, options: any, payload: any) => Promise<any>;
     // Arguments shift
-    invoke: (qualifier: Qualifier, options: any, payload?: any) => Promise<void>;
+    invoke: (qualifier: Qualifier, options: any, payload?: any) => Promise<any>;
     shutdown: (timeout: number) => Promise<string[]>;
   };
 
