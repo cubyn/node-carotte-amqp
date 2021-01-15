@@ -518,7 +518,8 @@ function Carotte(config) {
                                 context,
                                 invoke: subPublication(context, 'invoke', qualifier).bind(this),
                                 publish: subPublication(context, 'publish', qualifier).bind(this),
-                                parallel: subPublication(context, 'parallel', qualifier).bind(this)
+                                parallel: subPublication(context, 'parallel', qualifier).bind(this),
+                                logger: config.transport
                             })
                             .then(response => {
                                 const timeNow = new Date().getTime();

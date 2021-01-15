@@ -37,6 +37,12 @@ declare namespace CarotteAmqp {
       'x-correlation-id': string;
     };
     context: any;
+    logger: {
+      log: any;
+      info: any;
+      error: any;
+      warn: any;
+    };
   };
 
   export type HandlerFunction = (params: HandlerParams) => Promise<any>;

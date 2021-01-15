@@ -1,5 +1,6 @@
 const expect = require('chai').expect;
 const carotte = require('./client')();
+const Carotte = require('./client');
 
 describe('subscriber', () => {
     describe('direct', () => {
@@ -23,6 +24,21 @@ describe('subscriber', () => {
             .then(() => carotte.publish('direct/hello1', {
                 context: { transactionId: '1234' }
             }, { hello: 'world' }));
+        });
+
+        it('should provides the configured transport as logger', done => {
+            const transport = {
+                log: () => {},
+                info: () => {},
+                error: () => {},
+                warn: () => {}
+            };
+
+            Carotte({ transport }).subscribe('direct/hello2', { queue: { exclusive: true } }, ({ logger }) => {
+                expect(logger).to.eql(transport);
+                done();
+            })
+            .then(() => carotte.publish('direct/hello2'));
         });
     });
 
