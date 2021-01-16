@@ -1,9 +1,25 @@
-const expect = require('chai').expect;
+const chai = require('chai');
+
+const { expect } = chai;
+chai.use(require('sinon-chai'));
+const sinon = require('sinon');
+
+const transport = {};
 const carotte = require('./client')({
-    autoDescribe: false
+    autoDescribe: false,
+    transport
 });
 
-describe('Local transactionId', () => {
+beforeEach(() => {
+    transport.info = sinon.fake();
+    transport.error = sinon.fake();
+});
+
+afterEach(() => {
+    sinon.restore();
+});
+
+describe.only('Local transactionId', () => {
     const options = { queue: { exclusive: true } };
 
     it('should create a transactionStack when it\'s not defined', async () => {
@@ -127,5 +143,30 @@ describe('Local transactionId', () => {
         });
 
         return carotte.invoke('stack-test-4-1', {});
+    });
+
+    it('should log the input with the correct stack', async () => {
+        await carotte.subscribe('stack-test-5-1', options, ({ context }) => context.transactionStack);
+        const transactionStack = await carotte.invoke('stack-test-5-1', { context: {} }, {});
+        expect(transport.info).to.have.been.calledWithExactly(
+            '▶  direct/stack-test-5-1',
+            sinon.match.has(
+                'context',
+                sinon.match.has(
+                    'transactionStack',
+                    transactionStack
+                )
+            )
+        );
+        expect(transport.info).to.have.been.calledWithExactly(
+            '◀  stack-test-5-1',
+            sinon.match.has(
+                'context',
+                sinon.match.has(
+                    'transactionStack',
+                    transactionStack
+                )
+            )
+        );
     });
 });
