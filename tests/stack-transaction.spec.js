@@ -19,7 +19,7 @@ afterEach(() => {
     sinon.restore();
 });
 
-describe.only('Local transactionId', () => {
+describe('Local transactionId', () => {
     const options = { queue: { exclusive: true } };
 
     it('should create a transactionStack when it\'s not defined', async () => {
