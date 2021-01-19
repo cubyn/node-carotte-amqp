@@ -424,7 +424,7 @@ function Carotte(config) {
      * @param {object} meta - Meta description of the functions
      * @return {promise} return a new queue
      */
-    carotte.subscribe = function subscribe(qualifier, options, handler, meta) {
+    carotte.subscribe = function subscribe(qualifier, options, handler, meta, logger = undefined) {
         let chan;
 
         // options is optionnal thus change the params order
@@ -519,7 +519,7 @@ function Carotte(config) {
                                 invoke: subPublication(context, 'invoke', qualifier).bind(this),
                                 publish: subPublication(context, 'publish', qualifier).bind(this),
                                 parallel: subPublication(context, 'parallel', qualifier).bind(this),
-                                logger: config.transport
+                                logger: logger ? contextifyLogger(context, logger) : undefined
                             })
                             .then(response => {
                                 const timeNow = new Date().getTime();
@@ -778,6 +778,35 @@ function subPublication(context, method, originQualifier) {
 
         return this[method](qualifier, options, ...params);
     };
+}
+
+/**
+ * Wrap the logger methods (log, info, error, warn) to pass context
+ * @param  {object} context The current object context
+ * @param  {object} logger  The current, unwrapped object logger
+ * @return {object}         The wrapped object logger
+ */
+function contextifyLogger(context, logger) {
+    // Should follow the Logger type defined in ./index.d.ts
+    // Otherwise, the log message will not be contextualized
+    //
+    // for (let method in console) {
+    //   if (typeof console[method] === 'function') {
+    //     ...
+    //
+    // seems overkill
+    ['log', 'info', 'error', 'warn'].forEach((methodName) => {
+        const method = logger[methodName];
+
+        logger[methodName] = function (message, ...meta) {
+            // logger.info('ok', { pid: 1 }) becomes:
+            // logger.info('ok', { pid: 1, context: { ... } })
+            meta[0] = { ...meta[0], context };
+            method.apply(this, [message, ...meta]);
+        };
+    });
+
+    return logger;
 }
 
 /**

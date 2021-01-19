@@ -12,6 +12,13 @@ declare namespace CarotteAmqp {
   export type ServiceName = string;
   export type ServiceVersion = number;
 
+  export type Logger = {
+    log: (params: any) => any;
+    info: (params: any) => any;
+    error: (params: any) => any;
+    warn: (params: any) => any;
+  };
+
   type CarotteLibOptions = {
     serviceName: ServiceName;
     host: string;
@@ -19,7 +26,7 @@ declare namespace CarotteAmqp {
     enableDeadLetter: boolean;
     autoDescribe: boolean;
     deadLetterQualifier: Qualifier;
-    transport: any;
+    transport: Logger;
     connexion: {
       noDelay: boolean;
       clientProperties: {
@@ -37,12 +44,7 @@ declare namespace CarotteAmqp {
       'x-correlation-id': string;
     };
     context: any;
-    logger: {
-      log: any;
-      info: any;
-      error: any;
-      warn: any;
-    };
+    logger: Logger;
   };
 
   export type HandlerFunction = (params: HandlerParams) => Promise<any>;

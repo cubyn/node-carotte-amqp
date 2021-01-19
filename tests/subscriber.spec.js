@@ -1,8 +1,34 @@
 const expect = require('chai').expect;
 const carotte = require('./client')();
-const Carotte = require('./client');
 
 describe('subscriber', () => {
+    // describe.only('logger', () => {
+    //     it('works', () => {
+    //         const orgLogger = {
+    //             info: (...args) => {
+    //                 // console.log(...args);
+    //                 expect(args[0]).to.eql('message');
+    //                 expect(args[1].pid).to.eql(1);
+    //                 expect(args[1].context).to.eql({ tid: 123 });
+    //             }
+    //         };
+
+    //         const contextifyLogger2 = (context, logger) => {
+    //             const loggerInfo = logger.info;
+
+    //             logger.info = function (message, ...args) {
+    //                 args[0] = { ...args[0], context };
+
+    //                 loggerInfo.apply(this, [message, ...args]);
+    //             };
+    //         };
+
+    //         contextifyLogger2({ tid: 123 }, orgLogger);
+
+    //         orgLogger.info('message', { pid: 1 });
+    //     });
+    // });
+
     describe('direct', () => {
         it('should be able to receive a message on a queue (no option)', done => {
             carotte.subscribe('direct/hello', () => {
@@ -26,19 +52,46 @@ describe('subscriber', () => {
             }, { hello: 'world' }));
         });
 
-        it('should provides the configured transport as logger', done => {
-            const transport = {
-                log: () => {},
-                info: () => {},
-                error: () => {},
-                warn: () => {}
-            };
+        describe('when no logger is injected in subscribe', () => {
+            it('should no provides the logger', done => {
+                carotte.subscribe('direct/hello2', { queue: { exclusive: true } }, ({ logger }) => {
+                    expect(logger).to.be.undefined;
+                    done();
+                })
+                .then(() => carotte.publish('direct/hello2'));
+            });
+        });
 
-            Carotte({ transport }).subscribe('direct/hello2', { queue: { exclusive: true } }, ({ logger }) => {
-                expect(logger).to.eql(transport);
-                done();
-            })
-            .then(() => carotte.publish('direct/hello2'));
+        describe('when a logger is injected in subscribe', () => {
+            it.only('should provides the logger with the current context', done => {
+                const MESSAGE = 'message';
+                const PID = 123;
+                const TRANSACTION_ID = '1234';
+
+                const queryContext = { transactionId: TRANSACTION_ID };
+                const queryMeta = {};
+                const options = { queue: { exclusive: true } };
+                const originalLogger = {
+                    log: () => {},
+                    info: (message, ...meta) => {
+                        expect(message).to.eql(MESSAGE);
+                        expect(meta[0].pid).to.eql(PID);
+                        expect(meta[0].context).to.be.defined;
+                    },
+                    error: () => {},
+                    warn: () => {}
+                };
+
+                carotte.subscribe('direct/hello3', options, ({ context, logger }) => {
+                    expect(context.transactionId).to.eql(TRANSACTION_ID);
+                    expect(logger).to.be.defined;
+
+                    logger.info(MESSAGE, { pid: PID });
+
+                    done();
+                }, queryMeta, originalLogger)
+                .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}));
+            });
         });
     });
 
