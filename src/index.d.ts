@@ -12,11 +12,14 @@ declare namespace CarotteAmqp {
   export type ServiceName = string;
   export type ServiceVersion = number;
 
+  // As defined in Winston
   export type Logger = {
-    log: (params: any) => any;
+    silly: (params: any) => any;
+    debug: (params: any) => any;
+    verbose: (params: any) => any;
     info: (params: any) => any;
-    error: (params: any) => any;
     warn: (params: any) => any;
+    error: (params: any) => any;
   };
 
   type CarotteLibOptions = {

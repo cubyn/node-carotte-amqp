@@ -795,7 +795,7 @@ function contextifyLogger(context, logger) {
     //     ...
     //
     // seems overkill
-    ['log', 'info', 'error', 'warn'].forEach((methodName) => {
+    ['silly', 'debug', 'verbose', 'info', 'warn', 'error'].forEach((methodName) => {
         const method = logger[methodName];
 
         logger[methodName] = function (message, ...meta) {
