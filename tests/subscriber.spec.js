@@ -2,33 +2,6 @@ const expect = require('chai').expect;
 const carotte = require('./client')();
 
 describe('subscriber', () => {
-    // describe.only('logger', () => {
-    //     it('works', () => {
-    //         const orgLogger = {
-    //             info: (...args) => {
-    //                 // console.log(...args);
-    //                 expect(args[0]).to.eql('message');
-    //                 expect(args[1].pid).to.eql(1);
-    //                 expect(args[1].context).to.eql({ tid: 123 });
-    //             }
-    //         };
-
-    //         const contextifyLogger2 = (context, logger) => {
-    //             const loggerInfo = logger.info;
-
-    //             logger.info = function (message, ...args) {
-    //                 args[0] = { ...args[0], context };
-
-    //                 loggerInfo.apply(this, [message, ...args]);
-    //             };
-    //         };
-
-    //         contextifyLogger2({ tid: 123 }, orgLogger);
-
-    //         orgLogger.info('message', { pid: 1 });
-    //     });
-    // });
-
     describe('direct', () => {
         it('should be able to receive a message on a queue (no option)', done => {
             carotte.subscribe('direct/hello', () => {
@@ -63,7 +36,7 @@ describe('subscriber', () => {
         });
 
         describe('when a logger is injected in subscribe', () => {
-            it.only('should provides the logger with the current context', done => {
+            it('should provides the logger with the current context', done => {
                 const MESSAGE = 'message';
                 const PID = 123;
                 const TRANSACTION_ID = '1234';
