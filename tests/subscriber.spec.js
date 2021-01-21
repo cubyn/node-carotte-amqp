@@ -24,6 +24,48 @@ describe('subscriber', () => {
                 context: { transactionId: '1234' }
             }, { hello: 'world' }));
         });
+
+        describe('when no logger is injected in subscribe', () => {
+            it('should no provides the logger', done => {
+                carotte.subscribe('direct/hello2', { queue: { exclusive: true } }, ({ logger }) => {
+                    expect(logger).to.be.undefined;
+                    done();
+                })
+                .then(() => carotte.publish('direct/hello2'));
+            });
+        });
+
+        describe('when a logger is injected in subscribe', () => {
+            it('should provides the logger with the current context', done => {
+                const MESSAGE = 'message';
+                const PID = 123;
+                const TRANSACTION_ID = '1234';
+
+                const queryContext = { transactionId: TRANSACTION_ID };
+                const queryMeta = {};
+                const options = { queue: { exclusive: true } };
+                const originalLogger = {
+                    log: () => {},
+                    info: (message, ...meta) => {
+                        expect(message).to.eql(MESSAGE);
+                        expect(meta[0].pid).to.eql(PID);
+                        expect(meta[0].context).to.be.defined;
+                    },
+                    error: () => {},
+                    warn: () => {}
+                };
+
+                carotte.subscribe('direct/hello3', options, ({ context, logger }) => {
+                    expect(context.transactionId).to.eql(TRANSACTION_ID);
+                    expect(logger).to.be.defined;
+
+                    logger.info(MESSAGE, { pid: PID });
+
+                    done();
+                }, queryMeta, originalLogger)
+                .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}));
+            });
+        });
     });
 
     describe('fanout', () => {
