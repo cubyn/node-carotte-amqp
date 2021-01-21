@@ -94,7 +94,7 @@ declare namespace CarotteAmqp {
     clearParallel: (parallelId: ParallelId) => void;
     invokeWithFullResponse: (qualifier: Qualifier, options: any, payload: any) => Promise<any>;
     // Arguments shift
-    subscribe: (qualifier: Qualifier, options: SubscribeOptions | HandlerFunction, handler?: HandlerFunction | SubscribeMeta, meta?: SubscribeMeta) => Promise<any>;
+    subscribe: (qualifier: Qualifier, options: SubscribeOptions | HandlerFunction, handler?: HandlerFunction | SubscribeMeta, meta?: SubscribeMeta, logger?: Logger) => Promise<any>;
     parallel: (qualifier: Qualifier, options: any, payload: any, callback: Function) => Promise<ParallelId>;
     publish: (qualifier: Qualifier, options: any, payload: any) => Promise<any>;
     // Arguments shift
