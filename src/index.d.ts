@@ -53,12 +53,6 @@ declare namespace CarotteAmqp {
 
   export type HandlerFunction = (params: HandlerParams) => Promise<any>;
 
-  export type RetryOption = {
-    max?: number;
-    interval?: number;
-    strategy?: 'direct' | 'exponential' | 'fixed';
-  };
-
   // Too hard to exactly describe the possible properties
   export type SubscribeOptions = {
     type?: 'direct' | 'headers' | 'fanout' | 'topic';
@@ -73,7 +67,11 @@ declare namespace CarotteAmqp {
       durable: boolean;
     };
     prefetch?: number;
-    retry?: RetryOption;
+    retry?: {
+      max: number;
+      intervale: number;
+      strategy: 'direct' | 'exponential' | 'fixed';
+    };
   };
 
   export type SubscribeMeta = {
