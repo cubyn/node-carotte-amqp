@@ -69,7 +69,7 @@ declare namespace CarotteAmqp {
     prefetch?: number;
     retry?: {
       max: number;
-      intervale: number;
+      interval: number;
       strategy: 'direct' | 'exponential' | 'fixed';
     };
   };
