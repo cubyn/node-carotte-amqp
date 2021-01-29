@@ -1,6 +1,7 @@
 const debug = require('debug');
 const Puid = require('puid');
 const amqp = require('amqplib');
+const clone = require('safe-clone-deep');
 
 const autodocAgent = require('./autodoc-agent');
 const describe = require('./describe');
@@ -787,6 +788,8 @@ function subPublication(context, method, originQualifier) {
  * @return {object}         The wrapped object logger
  */
 function contextifyLogger(context, logger) {
+    const wrappedLogger = clone(logger);
+
     // Should follow the Logger type defined in ./index.d.ts
     // Otherwise, the log message will not be contextualized
     //
@@ -796,9 +799,9 @@ function contextifyLogger(context, logger) {
     //
     // seems overkill
     ['silly', 'debug', 'verbose', 'info', 'warn', 'error'].forEach((methodName) => {
-        const method = logger[methodName];
+        const method = wrappedLogger[methodName];
 
-        logger[methodName] = function (message, ...meta) {
+        wrappedLogger[methodName] = function (message, ...meta) {
             // logger.info('ok', { pid: 1 }) becomes:
             // logger.info('ok', { pid: 1, context: { ... } })
             meta[0] = Object.assign({}, meta[0], context);
@@ -806,7 +809,7 @@ function contextifyLogger(context, logger) {
         };
     });
 
-    return logger;
+    return wrappedLogger;
 }
 
 /**
