@@ -50,6 +50,8 @@ describe('subscriber', () => {
                         expect(message).to.eql(MESSAGE);
                         expect(meta[0].pid).to.eql(PID);
                         expect(meta[0].context).to.be.defined;
+
+                        return meta;
                     },
                     error: () => {},
                     warn: () => {}
@@ -60,10 +62,17 @@ describe('subscriber', () => {
                     expect(logger).to.be.defined;
 
                     logger.info(MESSAGE, { pid: PID });
+                }, queryMeta, originalLogger)
+                .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}))
+                .then(() => {
+                    const meta = originalLogger.info(MESSAGE, { pid: PID });
+
+                    // The logger in a Carotte function does not mutate the logger outside
+                    // Avoid having logger with context outside Carotte functions
+                    expect(meta[0].transactionId).to.be.undefined;
 
                     done();
-                }, queryMeta, originalLogger)
-                .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}));
+                });
             });
         });
     });
