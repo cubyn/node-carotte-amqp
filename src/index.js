@@ -712,7 +712,7 @@ function Carotte(config) {
         if (shutdownPromise) return shutdownPromise;
 
         // unsubscribe for any new message
-        const unsubscribeAll = consumers.map(
+        const unsubscribeChannels = consumers.map(
             consumer => consumer.chan.cancel(consumer.consumerTag)
         );
 
@@ -721,10 +721,15 @@ function Carotte(config) {
 
         shutdownPromise =
             // unsubscribe from all queues
-            Promise.all(unsubscribeAll)
+            Promise.all(unsubscribeChannels)
             // wait for current messages to be acked or nacked
             .then(() => messageRegister.wait(timeout))
-            .then(messages => (awaitedMessages = messages))
+            .then((messages) => {
+                awaitedMessages = messages;
+
+                // Avoid unhandled message when a new instance get a requeud message
+                return new Promise((resolve) => setTimeout(resolve, 2000));
+            })
             // in case we could not wait for all messages,
             // we still need to go on closing RMQ connection
             .catch(error => (awaitError = error))
