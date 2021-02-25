@@ -1,6 +1,15 @@
 import { Connection, Channel } from 'amqplib';
 
 declare namespace CarotteAmqp {
+    interface Logger {
+        info: (message: string, ...meta: any[]) => void;
+        warn: (message: string, ...meta: any[]) => void;
+        error: (message: string, ...meta: any[]) => void;
+    }
+
+    type ParallelId = string;
+    type ConsumerTag = string;
+
     type CarotteOptions = {
         serviceName: string;
         host: string;
@@ -19,18 +28,7 @@ declare namespace CarotteAmqp {
         };
     };
 
-    type LogFunction = (message: string, ...meta: any[]) => void;
-
-    interface Logger {
-        info: LogFunction;
-        warn: LogFunction;
-        error: LogFunction;
-    }
-
-    type ConsumerTag = string;
     // amqplib types only provide methods (not properties)
-    type AmqpLibChannel = Channel & { consumers: Record<ConsumerTag, Function>[] };
-
 
     type SubscribeMeta = {
         description: string;
@@ -72,11 +70,7 @@ declare namespace CarotteAmqp {
 
     type SubscribeHandler = (params: SubscribeHandlerParameter) => Promise<any>;
 
-    type ParallelId = string;
-
-    export type Carotte = (config: CarotteOptions) => Transport;
-
-    export interface Transport {
+    interface Transport {
         getConnection: () => Promise<Connection>;
 
         /**
@@ -85,7 +79,7 @@ declare namespace CarotteAmqp {
          * @param {number} [prefetch] The channel prefetch settings
          * @return {promise} return the channel created
          */
-        getChannel(name?: string, prefetch?: number, isDebug?: boolean): Promise<AmqpLibChannel>;
+        getChannel(name?: string, prefetch?: number, isDebug?: boolean): Promise<Channel & { consumers: Record<ConsumerTag, Function>[] }>;
 
         /**
          * delete all exchange from cache
