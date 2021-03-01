@@ -28,14 +28,18 @@ declare namespace CarotteAmqp {
         };
     };
 
-    // amqplib types only provide methods (not properties)
-
     type SubscribeMeta = {
         description: string;
         permissions?: string[];
         isValidationEnabled?: boolean;
         requestSchema: any;
         responseSchema: any;
+        // Retry is a meta in Carotte AMQP. Used as option in Carotte Runtime
+        retry?: {
+            max?: number;
+            interval?: number;
+            strategy?: 'direct' | 'exponential' | 'fixed';
+        };
     };
 
     type SubscribeOptions = {
@@ -51,11 +55,6 @@ declare namespace CarotteAmqp {
             durable: boolean;
         };
         prefetch?: number;
-        retry?: {
-            max?: number;
-            interval?: number;
-            strategy?: 'direct' | 'exponential' | 'fixed';
-        };
     };
 
     type SubscribeHandlerParameter = {
