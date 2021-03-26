@@ -1,7 +1,16 @@
-const expect = require('chai').expect;
+const chai = require('chai');
+
+const { expect } = chai;
+chai.use(require('sinon-chai'));
+const sinon = require('sinon');
+
 const carotte = require('./client')();
 
 describe('subscriber', () => {
+    afterEach(() => {
+        sinon.restore();
+    });
+
     describe('direct', () => {
         it('should be able to receive a message on a queue (no option)', done => {
             carotte.subscribe('direct/hello', () => {
@@ -180,6 +189,74 @@ describe('subscriber', () => {
                         expect(err.message).to.not.eql('Should not be called a second time');
                     });
                 });
+            });
+
+            it('should republish a message with the same headers (appart retry ones)', async () => {
+                let callCount = 0;
+                const receivedHeaders = [];
+                let done;
+                const promise = new Promise(resolve => {
+                    done = resolve;
+                });
+                await carotte.subscribe('topic/hello/service-test.*', { queue: { exclusive: true, durable: false } }, ({ headers }) => {
+                    receivedHeaders.push({ ...headers });
+                    if (callCount) {
+                        done();
+                        return headers;
+                    }
+                    callCount++;
+                    throw new Error('An error occured');
+                });
+
+                await carotte.publish('topic/hello', {}, {});
+
+                await promise;
+
+                expect(receivedHeaders[1]).to.eql({
+                    ...receivedHeaders[0],
+                    'x-retry-count': '1',
+                    'x-retry-interval': '0',
+                    'x-retry-max': '5',
+                    'x-retry-strategy': 'direct'
+                });
+            });
+
+            it('should not trigger other listeners a second time if they were successful', async () => {
+                const dones = [];
+                const promises = [
+                    new Promise(resolve => {
+                        dones.push(resolve);
+                    }),
+                    new Promise(resolve => {
+                        dones.push(resolve);
+                    })
+                ];
+
+                // throws the first time
+                let callCount = 0;
+                const handler1 = sinon.fake(async () => {
+                    if (callCount) {
+                        dones[0]();
+                        return;
+                    }
+                    callCount++;
+                    throw new Error('An error occured');
+                });
+                await carotte.subscribe('topic/hi/service-1.hi', { queue: { exclusive: true, durable: false } }, handler1);
+
+                // resolves right away
+                const handler2 = sinon.fake(async () => {
+                    dones[1]();
+                });
+                await carotte.subscribe('topic/hi/service-2.hi', { queue: { exclusive: true, durable: false } }, handler2);
+
+                // will trigger both listeners
+                await carotte.publish('topic/hi', {}, {});
+
+                await Promise.all(promises);
+
+                expect(handler1).to.have.been.calledTwice;
+                expect(handler2).to.have.been.calledOnce;
             });
         });
     });

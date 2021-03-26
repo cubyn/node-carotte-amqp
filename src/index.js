@@ -237,7 +237,10 @@ function Carotte(config) {
 
         options = Object.assign({ headers: {}, context: {} }, options, parseQualifier(qualifier));
 
-        if (!config.enableDeadLetter || config.deadLetterQualifier !== qualifier) {
+        if (
+            (!config.enableDeadLetter || config.deadLetterQualifier !== qualifier)
+            && !options.headers['x-retry-count']
+        ) {
             options.headers['x-destination'] = qualifier;
         }
 
