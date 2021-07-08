@@ -14,8 +14,8 @@ describe('subscriber', () => {
             carotte.subscribe('direct/hello1', {
                 queue: { exclusive: true }
             }, ({ data, context }) => {
-                expect(data).to.be.defined;
-                expect(data.hello).to.be.defined;
+                expect(data).not.to.be.undefined;
+                expect(data.hello).not.to.be.undefined;
                 expect(data.hello).to.eql('world');
                 expect(context.transactionId).to.eql('1234');
                 done();
@@ -88,7 +88,7 @@ describe('subscriber', () => {
         it('should be able to receive a message on a fanout exchange', done => {
             carotte.subscribe('fanout/queue-name', { queue: { exclusive: true } }, ({ data }) => {
                 try {
-                    expect(data.hello).to.be.defined;
+                    expect(data.hello).not.to.be.undefined;
                     expect(data.hello).to.eql('world');
                     done();
                 } catch (err) {
@@ -110,7 +110,7 @@ describe('subscriber', () => {
         it('should be able to receive a message on a topic exchange', done => {
             carotte.subscribe('topic/topic-key-1/my-queue-name', { queue: { exclusive: true } }, ({ data }) => {
                 try {
-                    expect(data.hello).to.be.defined;
+                    expect(data.hello).not.to.be.undefined;
                     expect(data.hello).to.eql('world');
                     done();
                 } catch (err) {

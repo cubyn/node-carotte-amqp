@@ -4,9 +4,9 @@ const carotte = require('./client');
 describe('publisher', () => {
     it('should return a promise', () => {
         const returnValue = carotte().publish('', {});
-        expect(returnValue).to.be.defined;
+        expect(returnValue).not.to.be.undefined;
         expect(typeof returnValue).to.be.eql('object');
-        expect(returnValue.then).to.be.defined;
+        expect(returnValue.then).not.to.be.undefined;
         expect(typeof returnValue.then).to.be.eql('function');
     });
 
