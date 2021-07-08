@@ -5,7 +5,7 @@ describe('autodoc', () => {
     it('should answer to carotte fanouts', () => {
         return carotte.invoke('fanout', { exchangeName: 'carotte.fanout' }, { origin: 'master', type: 'all' })
             .then(data => {
-                expect(data).to.be.defined;
+                expect(data).not.to.be.undefined;
                 expect(data.name).to.eql('carotte-amqp');
             });
     });
@@ -22,11 +22,11 @@ describe('autodoc', () => {
 
         return carotte.invoke('fanout', { exchangeName: 'carotte.fanout' }, { origin: 'master', type: 'all' })
             .then(data => {
-                expect(data).to.be.defined;
-                expect(data.subscribers).to.be.defined;
-                expect(data.subscribers['carotte.hello']).to.be.defined;
-                expect(data.subscribers['carotte.hello'].requestSchema).to.be.defined;
-                expect(data.subscribers['carotte.hello'].responseSchema).to.be.defined;
+                expect(data).not.to.be.undefined;
+                expect(data.subscribers).not.to.be.undefined;
+                expect(data.subscribers['carotte.hello']).not.to.be.undefined;
+                expect(data.subscribers['carotte.hello'].requestSchema).not.to.be.undefined;
+                expect(data.subscribers['carotte.hello'].responseSchema).not.to.be.undefined;
                 expect(data.subscribers['carotte.hello'].requestSchema.hello).to.eql('world');
                 expect(data.subscribers['carotte.hello'].responseSchema.foo).to.eql('bar');
             });
@@ -53,9 +53,9 @@ describe('autodoc', () => {
 
         return carotte.invoke('fanout', { exchangeName: 'carotte.fanout' }, { origin: 'gateway', type: 'controller' })
             .then(data => {
-                expect(data).to.be.defined;
-                expect(data.subscribers).to.be.defined;
-                expect(data.subscribers['controller.hello']).to.be.defined;
+                expect(data).not.to.be.undefined;
+                expect(data.subscribers).not.to.be.undefined;
+                expect(data.subscribers['controller.hello']).not.to.be.undefined;
                 expect(data.subscribers['kwontwoller.hello']).to.be.undefined;
             });
     });

@@ -809,7 +809,7 @@ function contextifyLogger(context, logger) {
         wrappedLogger[methodName] = function (message, ...meta) {
             // logger.info('ok', { pid: 1 }) becomes:
             // logger.info('ok', { pid: 1, context: { ... } })
-            meta[0] = Object.assign({}, meta[0], context);
+            meta[0] = Object.assign({}, meta[0], { context });
             method.apply(this, [message, ...meta]);
         };
     });
