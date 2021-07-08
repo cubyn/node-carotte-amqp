@@ -40,16 +40,18 @@ describe('subscriber', () => {
                 const MESSAGE = 'message';
                 const PID = 123;
                 const TRANSACTION_ID = '1234';
+                const TRANSACTION_ID_GLOBAL = '4567';
 
                 const queryContext = { transactionId: TRANSACTION_ID };
                 const queryMeta = {};
                 const options = { queue: { exclusive: true } };
+
                 const originalLogger = {
                     log: () => {},
                     info: (message, ...meta) => {
                         expect(message).to.eql(MESSAGE);
                         expect(meta[0].pid).to.eql(PID);
-                        expect(meta[0].context).to.be.defined;
+                        expect(meta[0].context).not.to.be.undefined;
 
                         return meta;
                     },
@@ -59,17 +61,22 @@ describe('subscriber', () => {
 
                 carotte.subscribe('direct/hello3', options, ({ context, logger }) => {
                     expect(context.transactionId).to.eql(TRANSACTION_ID);
-                    expect(logger).to.be.defined;
+                    expect(logger).not.to.be.undefined;
 
                     logger.info(MESSAGE, { pid: PID });
                 }, queryMeta, originalLogger)
                 .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}))
                 .then(() => {
-                    const meta = originalLogger.info(MESSAGE, { pid: PID });
+                    const meta = originalLogger.info(MESSAGE, {
+                        pid: PID,
+                        context: {
+                            transactionId: TRANSACTION_ID_GLOBAL
+                        }
+                    });
 
                     // The logger in a Carotte function does not mutate the logger outside
                     // Avoid having logger with context outside Carotte functions
-                    expect(meta[0].transactionId).to.be.undefined;
+                    expect(meta[0].context.transactionId).to.eql(TRANSACTION_ID_GLOBAL);
 
                     done();
                 });
