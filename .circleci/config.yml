@@ -23,6 +23,9 @@ jobs:
           name: Lint
           command: make lint
       - run:
+          name: Build
+          command: make build
+      - run:
           name: Tests
           command: |
             AMQP_HOST=broker:5672 make test-cover

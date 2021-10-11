@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+      "baseUrl": ".",
+      "esModuleInterop": true,
+      "module": "commonjs",
+      "moduleResolution": "node",
+      "outDir": "dist",
+      "sourceMap": true,
+      "declaration": true,
+      "strict": true,
+      "target": "ES2020",
+      // Use "import type" syntax
+      // https://github.com/microsoft/TypeScript/pull/36412#issuecomment-707221008
+      "importsNotUsedAsValues": "error",
+      "allowJs": true,
+    }
+  }

@@ -1,0 +1,9 @@
+{
+    "extends": "./tsconfig.json",
+    // Avoid
+    // dist/src
+    // dist/scripts
+    "include": ["src/**/*"],
+    // Do not use .ts prefix (case of "allowJs: true")
+    "exclude": ["tests", "**/*.spec.*", "**/__mocks__"]
+  }

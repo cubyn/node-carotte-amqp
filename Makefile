@@ -34,6 +34,12 @@ deps: ## install dependencies
 	yarn install
 .PHONY: deps
 
+build: ## Run TS build
+	# Also copy non .ts files into dist/ keeping their path
+	# https://github.com/Microsoft/TypeScript/issues/30835#issuecomment-553733016
+	yarn run build
+.PHONY: build
+
 test: ## run unit tests
 	node_modules/.bin/mocha tests/* src/**/*.spec.js
 .PHONY: test
