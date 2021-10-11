@@ -38,6 +38,8 @@ const errorToRetryRegex = /(311|320|405|506|541)/;
 
 const pkg = getPackageJson();
 
+console.log('This IS NEW VERSION');
+
 /**
  * Create a simple wrapper for amqplib with more functionnalities
  * @constructor

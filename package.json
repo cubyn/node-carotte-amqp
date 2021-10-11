@@ -13,6 +13,7 @@
   "license": "GNU 3",
   "scripts": {
     "test": "make test",
+    "lint": "eslint src",
     "build": "tsc -p tsconfig.build.json && cp src/index.d.ts dist/index.d.ts",
     "build:watch": "tsc -w"
   },
@@ -28,8 +29,12 @@
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "chai": "^3.5.0",
-    "eslint": "^3.15.0",
-    "eslint-config-cubyn": "^1.0.12",
+    "eslint": "^7.0.0",
+    "eslint-config-airbnb-typescript": "^12.0.0",
+    "eslint-config-prettier": "^8.0.0",
+    "eslint-plugin-cubyn-typescript": "^1.0.0",
+    "eslint-plugin-import": "^2.0.0",
+    "eslint-plugin-unicorn": "^33.0.0",
     "istanbul": "^0.4.5",
     "mocha": "^3.2.0",
     "progress": "^1.1.8",
