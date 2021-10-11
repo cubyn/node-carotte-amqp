@@ -2,84 +2,85 @@ const { join } = require('path');
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
 
 function parseQualifier(qualifier) {
-    let [
-        type,
-        routingKey,
-        queueName
-    ] = qualifier.split('/');
+  let [
+    type,
+    routingKey,
+    queueName,
+  ] = qualifier.split('/');
 
-    if (type !== 'fanout' && routingKey === undefined) {
-        routingKey = type;
-        type = EXCHANGE_TYPE.DIRECT;
-    } else if (type === 'fanout' && queueName === undefined) {
-        queueName = routingKey;
-        routingKey = '';
-    }
+  if (type !== 'fanout' && routingKey === undefined) {
+    routingKey = type;
+    type = EXCHANGE_TYPE.DIRECT;
+  } else if (type === 'fanout' && queueName === undefined) {
+    queueName = routingKey;
+    routingKey = '';
+  }
 
-    return {
-        queueName: queueName || '',
-        routingKey: routingKey || '',
-        type: type || EXCHANGE_TYPE.DIRECT
-    };
+  return {
+    queueName: queueName || '',
+    routingKey: routingKey || '',
+    type: type || EXCHANGE_TYPE.DIRECT,
+  };
 }
 
 function getPackageJson() {
-    try {
-        // eslint-disable-next-line
+  try {
+    // eslint-disable-next-line
         return require(join(process.env.PWD, 'package.json'));
-    } catch (err) {
-        return {};
-    }
+  } catch (err) {
+    return {};
+  }
 }
 
 function getExchangeName(options) {
-    if (options.exchangeName) {
-        return options.exchangeName;
-    }
+  if (options.exchangeName) {
+    return options.exchangeName;
+  }
 
-    if (!!options.type && EXCHANGES_AVAILABLE.includes(options.type)) {
-        return `amq.${options.type}`;
-    }
+  if (!!options.type && EXCHANGES_AVAILABLE.includes(options.type)) {
+    return `amq.${options.type}`;
+  }
 
-    return '';
+  return '';
 }
 
 function getQueueName(options, config) {
-    if (options.type === EXCHANGE_TYPE.DIRECT) {
-        return options.routingKey || '';
-    }
-    if (config.serviceName && options.queueName) {
-        return `${config.serviceName}:${options.queueName}`;
-    }
+  if (options.type === EXCHANGE_TYPE.DIRECT) {
+    return options.routingKey || '';
+  }
+  if (config.serviceName && options.queueName) {
+    return `${config.serviceName}:${options.queueName}`;
+  }
 
-    return '';
+  return '';
 }
 
 function parseSubscriptionOptions(options, qualifier) {
-    options = Object.assign({
-        routingKey: '',
-        durable: true,
-        queue: {},
-        exchange: {}
-    }, options, parseQualifier(qualifier));
+  options = {
+    routingKey: '',
+    durable: true,
+    queue: {},
+    exchange: {},
+    ...options,
+    ...parseQualifier(qualifier),
+  };
 
-    options.queue = Object.assign({
-        exclusive: false,
-        durable: true
-    }, options.queue);
+  options.queue = {
+    exclusive: false,
+    durable: true,
+    ...options.queue,
+  };
 
-    options.exchange = Object.assign({
-        durable: true
-    }, options.exchange);
+  options.exchange = { durable: true, ...options.exchange };
 
-    return options;
+  return options;
 }
 
 module.exports = {
-    parseQualifier,
-    parseSubscriptionOptions,
-    getPackageJson,
-    getExchangeName,
-    getQueueName,
-    debugToken: process.env.CAROTTE_DEBUG_TOKEN
+  parseQualifier,
+  parseSubscriptionOptions,
+  getPackageJson,
+  getExchangeName,
+  getQueueName,
+  debugToken: process.env.CAROTTE_DEBUG_TOKEN,
 };
