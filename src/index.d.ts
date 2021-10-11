@@ -99,7 +99,7 @@ declare namespace CarotteAmqp {
          * @param {object} [payload] - Data to send to the function
          * @return {promise} return when message is published
          */
-        publish<Payload = any, Response = any>(qualifier: string, options: object, payload: Payload): Promise<Response>;
+        publish<Payload = any, Response = any, Options = object>(qualifier: string, options: Options, payload: Payload): Promise<Response>;
 
         /**
          * Invoke a function
@@ -116,7 +116,7 @@ declare namespace CarotteAmqp {
          * @param {object} payload - Data to send to the function
          * @return {promise} return the function response
          */
-        invoke<Payload = any, Response = any>(qualifier: string, options?: object, payload?: Payload): Promise<Response>;
+        invoke<Payload = any, Response = any, Options = object>(qualifier: string, options: Options, payload: Payload): Promise<Response>;
 
         /**
          * Invoke a function and expect a result
@@ -124,7 +124,7 @@ declare namespace CarotteAmqp {
          * @param {object} payload - Data to send to the function
          * @return {promise} return the function response
          */
-        invoke<Payload = any, Response = any>(qualifier: string, payload?: Payload): Promise<Response>;
+        invoke<Payload = any, Response = any>(qualifier: string, payload: Payload): Promise<Response>;
 
         invokeWithFullResponse(qualifier: any, options: any, payload: any): Promise<any>;
 
