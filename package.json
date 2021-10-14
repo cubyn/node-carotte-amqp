@@ -28,6 +28,8 @@
     "eslint-config-cubyn": "^1.0.12",
     "istanbul": "^0.4.5",
     "mocha": "^3.2.0",
-    "progress": "^1.1.8"
+    "progress": "^1.1.8",
+    "sinon": "^9.2.3",
+    "sinon-chai": "^3.5.0"
   }
 }

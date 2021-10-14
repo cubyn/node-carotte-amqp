@@ -248,14 +248,16 @@ function Carotte(config) {
                 const rpc = options.headers['x-reply-to'] !== undefined;
                 const { log = true } = options;
 
+                const destinationContext = Object.assign({}, options.context, {
+                    transactionStack: getTransactionStack(options.context)
+                });
+
                 // isContentBuffer is used by internal functions who don't modify the content
                 const buffer = options.isContentBuffer
                     ? payload
                     : Buffer.from(JSON.stringify({
                         data: payload,
-                        context: Object.assign({}, options.context, {
-                            transactionStack: getTransactionStack(options.context)
-                        })
+                        context: destinationContext
                     }));
 
                 producerDebug('called');
@@ -279,7 +281,7 @@ function Carotte(config) {
                             producerDebug(`publishing to ${options.routingKey} on ${exchangeName}`);
                             if (log) {
                                 config.transport.info(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
-                                    context: options.context,
+                                    context: destinationContext,
                                     headers: options.headers,
                                     request: payload,
                                     subscriber: options.context['origin-consumer'] || '',
