@@ -1,4 +1,5 @@
 import { Connection, Channel } from 'amqplib';
+import { PluginOptions } from './plugins'
 
 declare namespace CarotteAmqp {
     interface Logger {
@@ -220,4 +221,6 @@ declare namespace CarotteAmqp {
     };
 
     const EXCHANGES_AVAILABLE: string[];
+
+    export { PluginOptions }
 }
