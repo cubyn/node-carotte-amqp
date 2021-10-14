@@ -13,7 +13,8 @@
   "license": "GNU 3",
   "scripts": {
     "test": "make test",
-    "lint": "make lint"
+    "lint": "make lint",
+    "gen:types:plugins": "tsc src/plugins.js --allowJs --declaration --emitDeclarationOnly --outDir src"
   },
   "dependencies": {
     "@types/amqplib": "^0.5.13",
@@ -28,6 +29,7 @@
     "eslint-config-cubyn": "^1.0.12",
     "istanbul": "^0.4.5",
     "mocha": "^3.2.0",
-    "progress": "^1.1.8"
+    "progress": "^1.1.8",
+    "typescript": "^4.4.3"
   }
 }
