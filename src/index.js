@@ -29,6 +29,8 @@ const {
     parseSubscriptionOptions
 } = require('./configs');
 
+const { getHooks } = require('./plugins');
+
 const puid = new Puid();
 const initDebug = debug('carotte:init');
 const consumerDebug = debug('carotte:consumer');
@@ -52,7 +54,8 @@ function Carotte(config) {
         deadLetterQualifier: 'dead-letter',
         enableDeadLetter: true,
         autoDescribe: false,
-        transport: emptyTransport
+        transport: emptyTransport,
+        plugins: []
     }, config);
 
     config.connexion = Object.assign({
@@ -65,6 +68,8 @@ function Carotte(config) {
         'carotte-host-name': pkg.name,
         'carotte-host-version': pkg.version
     });
+
+    config.hooks = getHooks(config.plugins);
 
     const carotte = {};
 
@@ -512,7 +517,8 @@ function Carotte(config) {
                         }
 
                         // execute the handler inside a try catch block
-                        return execInPromise(handler,
+                        return execInPromise(
+                            config.hooks.onReceive(handler),
                             {
                                 data,
                                 headers,
