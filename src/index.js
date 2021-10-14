@@ -708,38 +708,46 @@ function Carotte(config) {
      *         if error - rejects MessageWaitTimeoutError
      *             containing messages that have timed out
      */
-    carotte.shutdown = function shutdown(timeout = 0) {
+    carotte.shutdown = function shutdown(timeout = 0, requeudMessageTimer = 2000) {
         if (shutdownPromise) return shutdownPromise;
 
-        // unsubscribe for any new message
-        const unsubscribeChannels = consumers.map(
-            consumer => consumer.chan.cancel(consumer.consumerTag)
-        );
+        const close = async () => {
+            // unsubscribe for any new message
+            const unsubscribeChannels = consumers.map(
+                consumer => consumer.chan.cancel(consumer.consumerTag)
+            );
 
-        let awaitError;
-        let awaitedMessages;
+            let awaitError;
+            let awaitedMessages;
 
-        shutdownPromise =
             // unsubscribe from all queues
-            Promise.all(unsubscribeChannels)
-            // wait for current messages to be acked or nacked
-            .then(() => messageRegister.wait(timeout))
-            .then((messages) => {
+            await Promise.all(unsubscribeChannels);
+
+            try {
+                // wait for current messages to be acked or nacked
+                const messages = await messageRegister.wait(timeout);
                 awaitedMessages = messages;
 
                 // Avoid unhandled message when a new instance get a requeud message
-                return new Promise((resolve) => setTimeout(resolve, 2000));
-            })
-            // in case we could not wait for all messages,
-            // we still need to go on closing RMQ connection
-            .catch(error => (awaitError = error))
+                await new Promise((resolve) => setTimeout(resolve, requeudMessageTimer));
+            } catch (error) {
+                // in case we could not wait for all messages,
+                // we still need to go on closing RMQ connection
+                awaitError = error;
+            }
+
             // finally close RMQ TCP connection
-            .then(() => connexion)
-            .then(c => c.close())
-            .then(() => {
-                if (awaitError) throw awaitError;
-                return awaitedMessages;
-            });
+            const c = await connexion;
+            if (c) {
+                await c.close();
+            }
+
+            if (awaitError) throw awaitError;
+
+            return awaitedMessages;
+        };
+
+        shutdownPromise = close();
 
         return shutdownPromise;
     };
