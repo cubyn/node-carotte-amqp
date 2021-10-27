@@ -540,6 +540,7 @@ function Carotte(config) {
                                     context,
                                     headers,
                                     response,
+                                    request: data,
                                     subscriber: qualifier,
                                     destination: '',
                                     executionMs: new Date().getTime() - startTime,
