@@ -32,11 +32,26 @@ Here is a basic sample configuration using default interval values for reference
 ```js
 const carotte = require('carotte-amqp')({
     serviceName: require('package.json').name, // your service name
-    host: 'localhost:5672', // amqp host name
+    host: 'amqp://localhost:5672', // amqp host name
     enableAutodoc: false, // answer to autodocumentation fanout requests
     enableDeadLetter: false, // should failing messages be put in dead-letter?
     deadLetterQualifier: 'direct/dead-letter', // dead-lettered messages will be sent here
     autoDescribe: false // provide a :describe queue for your function
+});
+
+// SSL connection
+// amqplib example: https://github.com/squaremo/amqp.node/blob/main/examples/ssl.js#L37-L44
+const carotte = require('carotte-amqp')({
+    // ...
+    host: 'amqps://localhost:5672',
+    connexion: {
+        cert: fs.readFileSync('../etc/client/cert.pem'),
+        key: fs.readFileSync('../etc/client/key.pem'),
+        // cert and key or
+        // pfx: fs.readFileSync('../etc/client/keycert.p12'),
+        passphrase: 'MySecretPassword',
+        ca: [fs.readFileSync('../etc/testca/cacert.pem')]
+    }
 });
 ```
 

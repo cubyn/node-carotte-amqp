@@ -47,13 +47,18 @@ function Carotte(config) {
     // assign default config to the use config
     config = Object.assign({
         serviceName: pkg.name,
-        host: 'localhost:5672',
+        host: 'amqp://localhost:5672',
         enableAutodoc: false,
         deadLetterQualifier: 'dead-letter',
         enableDeadLetter: true,
         autoDescribe: false,
         transport: emptyTransport
     }, config);
+
+    // Note: ensure retro compatibility
+    if (!(config.host.startsWith('amqp://') || config.host.startsWith('amqps://'))) {
+        config.host = `amqp://${config.host}`;
+    }
 
     config.connexion = Object.assign({
         noDelay: true,
@@ -84,7 +89,7 @@ function Carotte(config) {
             return connexion;
         }
 
-        connexion = amqp.connect(`amqp://${config.host}`, config.connexion).then(conn => {
+        connexion = amqp.connect(config.host, config.connexion).then(conn => {
             conn.on('close', (err) => {
                 connexion = undefined;
                 channels = {};
