@@ -42,4 +42,46 @@ describe('transport info', () => {
             })
         );
     });
+
+    it('includes the request payload in the output log when the execution throws an error', async () => {
+        class CustomError extends Error {
+            constructor() {
+                super();
+                this.name = 'CustomError';
+            }
+        }
+
+        await carotte.subscribe(
+            'throw-transport',
+            { queue: { exclusive: true } },
+            () => {
+                throw new CustomError();
+            }
+        );
+        await carotte.invoke('throw-transport', {}, { query: 'hello' }).then(
+            () => {
+                throw new Error('Expected execution to throw error');
+            },
+            (receivedError) => {
+                expect(receivedError).to.include({ status: 500, name: 'CustomError' });
+            }
+        );
+
+        expect(transport.info).to.have.been.calledWithExactly(
+            '▶  direct/throw-transport',
+            sinon.match({
+                destination: 'throw-transport',
+                request: sinon.match({ query: 'hello' })
+            })
+        );
+
+        expect(transport.error).to.have.been.calledWithExactly(
+            '◀  throw-transport',
+            sinon.match({
+                subscriber: 'throw-transport',
+                request: sinon.match({ query: 'hello' }),
+                error: sinon.match({ status: 500, name: 'CustomError' })
+            })
+        );
+    });
 });
