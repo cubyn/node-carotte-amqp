@@ -604,6 +604,7 @@ function Carotte(config) {
                     headers,
                     subscriber: qualifier,
                     destination: '',
+                    request: JSON.parse(message.content).data,
                     error: err
                 });
 
