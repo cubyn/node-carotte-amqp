@@ -10,7 +10,7 @@ describe('rpc', () => {
             .then(() => {
                 return carotte.invoke('direct/hello-rpc', {}, {})
                     .then(data => {
-                        expect(data).to.be.defined;
+                        expect(data).not.to.be.undefined;
                         expect(data.a).to.eql(1);
                     });
             });
@@ -23,7 +23,7 @@ describe('rpc', () => {
             .then(() => {
                 return carotte.invoke('direct/hello-rpc2', {})
                     .then(data => {
-                        expect(data).to.be.defined;
+                        expect(data).not.to.be.undefined;
                         expect(data.a).to.eql(2);
                     });
             });
@@ -134,7 +134,7 @@ describe('rpc', () => {
                 return carotte.invokeWithFullResponse('direct/distributed-tracing-rpc', {})
                     .then(({ data, context }) => {
                         expect(context.hello).to.eql(2);
-                        expect(data).to.be.defined;
+                        expect(data).not.to.be.undefined;
                         expect(data.a).to.eql(1);
                     });
             });
