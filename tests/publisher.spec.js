@@ -4,10 +4,8 @@ const carotte = require('./client');
 describe('publisher', () => {
     it('should return a promise', () => {
         const returnValue = carotte().publish('', {});
-        expect(returnValue).to.be.defined;
-        expect(typeof returnValue).to.be.eql('object');
-        expect(returnValue.then).to.be.defined;
-        expect(typeof returnValue.then).to.be.eql('function');
+        expect(returnValue).to.be.a('promise');
+        expect(returnValue.then).to.be.a('function');
     });
 
     it('should resolve with broker publication status, and should be able to publish', () => {

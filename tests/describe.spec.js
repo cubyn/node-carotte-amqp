@@ -11,7 +11,7 @@ describe('describe', () => {
 
         return carotte.invoke('hello-to-you-describe!:describe', {})
             .then(data => {
-                expect(data.meta).to.be.defined;
+                expect(data.meta).to.be.a('string');
                 expect(data.meta).to.eql('cyborg');
             });
     });
@@ -25,7 +25,7 @@ describe('describe', () => {
 
         carotte.invoke('hello-to-you-describe!:describe', {})
             .then(data => {
-                expect(data.meta).to.be.defined;
+                expect(data.meta).to.be.a('string');
                 expect(data.meta).to.be.eql('cyborg');
             })
             .then(done);

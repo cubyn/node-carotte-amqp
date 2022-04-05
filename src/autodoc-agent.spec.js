@@ -11,15 +11,15 @@ describe('autodoc agent spec', () => {
             const subscriber = autodocAgent.getSubscriber('toto');
 
             expect(subscriber.qualifier).to.be.eql('toto');
-            expect(subscriber.performances).to.be.defined;
-            expect(subscriber.performances.duration).to.be.defined;
+            expect(subscriber.performances).to.be.an('object');
+            expect(subscriber.performances.duration).to.be.an('object');
             expect(subscriber.performances.duration.min).to.be.eql(0);
             expect(subscriber.performances.duration.max).to.be.eql(0);
             expect(subscriber.performances.duration.sum).to.be.eql(0);
             expect(subscriber.receivedCount).to.be.eql(0);
             expect(subscriber.firstReceivedAt.getTime()).to.be.eql(new Date(0).getTime());
             expect(subscriber.lastReceivedAt.getTime()).to.be.eql(new Date(0).getTime());
-            expect(subscriber.callers).to.be.defined;
+            expect(subscriber.callers).to.be.an('array');
         });
     });
 

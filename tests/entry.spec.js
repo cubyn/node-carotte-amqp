@@ -3,18 +3,14 @@ const carotte = require('../src');
 
 describe('entry point', () => {
     it('shoud expose a function', () => {
-        expect(carotte).to.be.defined;
-        expect(typeof carotte).to.eql('function');
+        expect(carotte).to.be.a('function');
     });
 
     it('should return a builded object exposing carotte API', () => {
         const instance = carotte();
-        expect(instance).to.be.defined;
-        expect(instance.invoke).to.be.defined;
-        expect(instance.publish).to.be.defined;
-        expect(instance.subscribe).to.be.defined;
-        expect(typeof instance.invoke).to.eql('function');
-        expect(typeof instance.publish).to.eql('function');
-        expect(typeof instance.subscribe).to.eql('function');
+        expect(instance).to.be.an('object');
+        expect(instance.invoke).to.be.a('function');
+        expect(instance.publish).to.be.a('function');
+        expect(instance.subscribe).to.be.a('function');
     });
 });

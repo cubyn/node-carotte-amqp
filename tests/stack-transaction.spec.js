@@ -38,8 +38,7 @@ describe('Local transactionId', () => {
 
     it('should add transactionStack ids in cascade', async () => {
         await carotte.subscribe('stack-test-3-1', options, ({ context, invoke }) => {
-            expect(context).to.be.defined;
-            expect(context.transactionStack).to.be.defined;
+            expect(context).to.be.an('object');
             expect(context.transactionStack).to.be.an('array');
             expect(context.transactionStack).to.have.length(1);
             return invoke('stack-test-3-2', {});
@@ -69,8 +68,7 @@ describe('Local transactionId', () => {
 
         await carotte.subscribe('stack-test-4-1', options, ({ context, invoke }) => {
             stackId1 = context.transactionStack[0];
-            expect(context).to.be.defined;
-            expect(context.transactionStack).to.be.defined;
+            expect(context).to.be.an('object');
             expect(context.transactionStack).to.be.an('array');
             expect(context.transactionStack).to.have.length(1);
 
