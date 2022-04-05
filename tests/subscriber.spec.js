@@ -14,8 +14,7 @@ describe('subscriber', () => {
             carotte.subscribe('direct/hello1', {
                 queue: { exclusive: true }
             }, ({ data, context }) => {
-                expect(data).to.be.defined;
-                expect(data.hello).to.be.defined;
+                expect(data).to.be.an('object');
                 expect(data.hello).to.eql('world');
                 expect(context.transactionId).to.eql('1234');
                 done();
@@ -49,7 +48,6 @@ describe('subscriber', () => {
                     info: (message, ...meta) => {
                         expect(message).to.eql(MESSAGE);
                         expect(meta[0].pid).to.eql(PID);
-                        expect(meta[0].context).to.be.defined;
 
                         return meta;
                     },
@@ -59,9 +57,10 @@ describe('subscriber', () => {
 
                 carotte.subscribe('direct/hello3', options, ({ context, logger }) => {
                     expect(context.transactionId).to.eql(TRANSACTION_ID);
-                    expect(logger).to.be.defined;
+                    expect(logger).to.be.an('object');
 
-                    logger.info(MESSAGE, { pid: PID });
+                    const meta = logger.info(MESSAGE, { pid: PID });
+                    expect(meta[0].transactionId).to.eql(TRANSACTION_ID);
                 }, queryMeta, originalLogger)
                 .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}))
                 .then(() => {
@@ -72,7 +71,8 @@ describe('subscriber', () => {
                     expect(meta[0].transactionId).to.be.undefined;
 
                     done();
-                });
+                })
+                .catch(done);
             });
         });
     });
@@ -81,7 +81,6 @@ describe('subscriber', () => {
         it('should be able to receive a message on a fanout exchange', done => {
             carotte.subscribe('fanout/queue-name', { queue: { exclusive: true } }, ({ data }) => {
                 try {
-                    expect(data.hello).to.be.defined;
                     expect(data.hello).to.eql('world');
                     done();
                 } catch (err) {
@@ -103,7 +102,6 @@ describe('subscriber', () => {
         it('should be able to receive a message on a topic exchange', done => {
             carotte.subscribe('topic/topic-key-1/my-queue-name', { queue: { exclusive: true } }, ({ data }) => {
                 try {
-                    expect(data.hello).to.be.defined;
                     expect(data.hello).to.eql('world');
                     done();
                 } catch (err) {

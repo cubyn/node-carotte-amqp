@@ -6,7 +6,7 @@ const clone = require('safe-clone-deep');
 const autodocAgent = require('./autodoc-agent');
 const describe = require('./describe');
 const MessageRegister = require('./message-register');
-const carottePackage = require('../package');
+const carottePackage = require('../package.json');
 
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
 const {
@@ -460,7 +460,9 @@ function Carotte(config) {
 
         // once channel is ready
         return carotte.getChannel(qualifier, options.prefetch)
-            .then(ch => (chan = ch))
+            .then(ch => {
+                chan = ch;
+            })
             // create the exchange.
             .then(ch => chan.assertExchange(exchangeName, options.type, {
                 durable: options.durable
@@ -739,7 +741,9 @@ function Carotte(config) {
             })
             // in case we could not wait for all messages,
             // we still need to go on closing RMQ connection
-            .catch(error => (awaitError = error))
+            .catch(error => {
+                awaitError = error;
+            })
             // finally close RMQ TCP connection
             .then(() => connexion)
             .then(c => c.close())
