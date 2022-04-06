@@ -1,6 +1,6 @@
 {
   "name": "carotte-amqp",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "AMQP wrapper for the carotte microservice framework",
   "main": "src/index.js",
   "types": "src/index.d.ts",
@@ -20,16 +20,16 @@
     "amqplib": "^0.5.3",
     "debug": "^2.6.0",
     "puid": "^1.0.5",
-    "safe-clone-deep": "^1.1.5",
-    "sinon": "7.5.0",
-    "sinon-chai": "^3.7.0"
+    "safe-clone-deep": "^1.1.5"
   },
   "devDependencies": {
-    "chai": "^3.5.0",
+    "chai": "^4.3.6",
     "eslint": "^3.15.0",
     "eslint-config-cubyn": "^1.0.12",
     "istanbul": "^0.4.5",
     "mocha": "^3.2.0",
-    "progress": "^1.1.8"
+    "progress": "^1.1.8",
+    "sinon": "7.5.0",
+    "sinon-chai": "^3.7.0"
   }
 }

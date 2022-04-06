@@ -22,7 +22,7 @@ describe('utils', () => {
     describe('createDeferred', () => {
         it('should create a deferred promise object', () => {
             const deferred = utils.createDeferred();
-            expect(deferred.promise).to.be.defined;
+            expect(deferred.promise).to.be.a('promise');
 
             deferred.resolve();
 
@@ -61,12 +61,14 @@ describe('utils', () => {
         it('should return string as-is if invalid JSON', () => {
             const error = `${JSON.stringify({ hello: 'world' })}aaa`;
             const deserialized = utils.deserializeError(error);
-            expect(deserialized).to.deep.equal(new Error(error));
+            expect(deserialized).to.be.instanceOf(Error);
+            expect(deserialized.message).to.eql(error);
         });
 
         it('should work with error objects', () => {
             const deserialized = utils.deserializeError({ message: 'Hello' });
-            expect(deserialized).to.deep.equal(new Error('hello'));
+            expect(deserialized).to.be.instanceOf(Error);
+            expect(deserialized.message).to.eql('Hello');
         });
     });
 

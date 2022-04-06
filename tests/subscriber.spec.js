@@ -1,5 +1,6 @@
 const expect = require('chai').expect;
 const carotte = require('./client')();
+const sinon = require('sinon');
 
 describe('subscriber', () => {
     describe('direct', () => {
@@ -14,8 +15,7 @@ describe('subscriber', () => {
             carotte.subscribe('direct/hello1', {
                 queue: { exclusive: true }
             }, ({ data, context }) => {
-                expect(data).to.be.defined;
-                expect(data.hello).to.be.defined;
+                expect(data).to.be.an('object');
                 expect(data.hello).to.eql('world');
                 expect(context.transactionId).to.eql('1234');
                 done();
@@ -36,7 +36,7 @@ describe('subscriber', () => {
         });
 
         describe('when a logger is injected in subscribe', () => {
-            it('should provides the logger with the current context', done => {
+            it('should provides the logger with the current context', () => {
                 const MESSAGE = 'message';
                 const PID = 123;
                 const TRANSACTION_ID = '1234';
@@ -44,35 +44,56 @@ describe('subscriber', () => {
                 const queryContext = { transactionId: TRANSACTION_ID };
                 const queryMeta = {};
                 const options = { queue: { exclusive: true } };
+                const logInfoSpy = sinon.spy();
                 const originalLogger = {
                     log: () => {},
-                    info: (message, ...meta) => {
-                        expect(message).to.eql(MESSAGE);
-                        expect(meta[0].pid).to.eql(PID);
-                        expect(meta[0].context).to.be.defined;
-
-                        return meta;
-                    },
+                    info: logInfoSpy,
                     error: () => {},
                     warn: () => {}
                 };
 
-                carotte.subscribe('direct/hello3', options, ({ context, logger }) => {
-                    expect(context.transactionId).to.eql(TRANSACTION_ID);
-                    expect(logger).to.be.defined;
+                return new Promise((resolve, reject) => {
+                    carotte.subscribe('direct/hello3', options, ({ context, logger }) => {
+                        try {
+                            expect(context.transactionId).to.eql(TRANSACTION_ID);
 
-                    logger.info(MESSAGE, { pid: PID });
-                }, queryMeta, originalLogger)
-                .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}))
-                .then(() => {
-                    const meta = originalLogger.info(MESSAGE, { pid: PID });
+                            logger.info(MESSAGE, { pid: PID });
 
-                    // The logger in a Carotte function does not mutate the logger outside
-                    // Avoid having logger with context outside Carotte functions
-                    expect(meta[0].transactionId).to.be.undefined;
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
+                    }, queryMeta, originalLogger)
+                    .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}))
+                    .catch(reject);
+                })
+                    .then(() => {
+                        sinon.assert.calledOnce(logInfoSpy);
+                        sinon.assert.calledWithExactly(
+                            logInfoSpy.firstCall,
+                            MESSAGE,
+                            {
+                                pid: PID,
+                                'origin-consumer': undefined,
+                                transactionId: TRANSACTION_ID,
+                                transactionStack: sinon.match.array
+                                    .and(sinon.match.every(sinon.match.string))
+                            }
+                        );
 
-                    done();
-                });
+                        originalLogger.info(MESSAGE, { pid: PID });
+
+                        sinon.assert.calledTwice(logInfoSpy);
+                        // The logger in a Carotte function does not mutate the logger outside
+                        // Avoid having logger with context outside Carotte functions
+                        sinon.assert.calledWithExactly(
+                            logInfoSpy.secondCall,
+                            MESSAGE,
+                            {
+                                pid: PID
+                            }
+                        );
+                    });
             });
         });
     });
@@ -81,7 +102,6 @@ describe('subscriber', () => {
         it('should be able to receive a message on a fanout exchange', done => {
             carotte.subscribe('fanout/queue-name', { queue: { exclusive: true } }, ({ data }) => {
                 try {
-                    expect(data.hello).to.be.defined;
                     expect(data.hello).to.eql('world');
                     done();
                 } catch (err) {
@@ -103,7 +123,6 @@ describe('subscriber', () => {
         it('should be able to receive a message on a topic exchange', done => {
             carotte.subscribe('topic/topic-key-1/my-queue-name', { queue: { exclusive: true } }, ({ data }) => {
                 try {
-                    expect(data.hello).to.be.defined;
                     expect(data.hello).to.eql('world');
                     done();
                 } catch (err) {
