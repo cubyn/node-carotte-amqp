@@ -1,5 +1,6 @@
 const expect = require('chai').expect;
 const carotte = require('./client')();
+const sinon = require('sinon');
 
 describe('subscriber', () => {
     describe('direct', () => {
@@ -35,7 +36,7 @@ describe('subscriber', () => {
         });
 
         describe('when a logger is injected in subscribe', () => {
-            it('should provides the logger with the current context', done => {
+            it('should provides the logger with the current context', () => {
                 const MESSAGE = 'message';
                 const PID = 123;
                 const TRANSACTION_ID = '1234';
@@ -43,36 +44,56 @@ describe('subscriber', () => {
                 const queryContext = { transactionId: TRANSACTION_ID };
                 const queryMeta = {};
                 const options = { queue: { exclusive: true } };
+                const logInfoSpy = sinon.spy();
                 const originalLogger = {
                     log: () => {},
-                    info: (message, ...meta) => {
-                        expect(message).to.eql(MESSAGE);
-                        expect(meta[0].pid).to.eql(PID);
-
-                        return meta;
-                    },
+                    info: logInfoSpy,
                     error: () => {},
                     warn: () => {}
                 };
 
-                carotte.subscribe('direct/hello3', options, ({ context, logger }) => {
-                    expect(context.transactionId).to.eql(TRANSACTION_ID);
-                    expect(logger).to.be.an('object');
+                return new Promise((resolve, reject) => {
+                    carotte.subscribe('direct/hello3', options, ({ context, logger }) => {
+                        try {
+                            expect(context.transactionId).to.eql(TRANSACTION_ID);
 
-                    const meta = logger.info(MESSAGE, { pid: PID });
-                    expect(meta[0].transactionId).to.eql(TRANSACTION_ID);
-                }, queryMeta, originalLogger)
-                .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}))
-                .then(() => {
-                    const meta = originalLogger.info(MESSAGE, { pid: PID });
+                            logger.info(MESSAGE, { pid: PID });
 
-                    // The logger in a Carotte function does not mutate the logger outside
-                    // Avoid having logger with context outside Carotte functions
-                    expect(meta[0].transactionId).to.be.undefined;
-
-                    done();
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
+                    }, queryMeta, originalLogger)
+                    .then(() => carotte.publish('direct/hello3', { context: queryContext }, {}))
+                    .catch(reject);
                 })
-                .catch(done);
+                    .then(() => {
+                        sinon.assert.calledOnce(logInfoSpy);
+                        sinon.assert.calledWithExactly(
+                            logInfoSpy.firstCall,
+                            MESSAGE,
+                            {
+                                pid: PID,
+                                'origin-consumer': undefined,
+                                transactionId: TRANSACTION_ID,
+                                transactionStack: sinon.match.array
+                                    .and(sinon.match.every(sinon.match.string))
+                            }
+                        );
+
+                        originalLogger.info(MESSAGE, { pid: PID });
+
+                        sinon.assert.calledTwice(logInfoSpy);
+                        // The logger in a Carotte function does not mutate the logger outside
+                        // Avoid having logger with context outside Carotte functions
+                        sinon.assert.calledWithExactly(
+                            logInfoSpy.secondCall,
+                            MESSAGE,
+                            {
+                                pid: PID
+                            }
+                        );
+                    });
             });
         });
     });
