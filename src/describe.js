@@ -16,6 +16,11 @@ module.exports.subscribeToDescribe = function (carotte, qualifier, meta) {
         qualifier = qualifier.replace(`:${configs.debugToken}`, '');
     }
 
+    carotte.subscribe(`${qualifier}:describe-durable`, { queue: { durable: true, autoDelete: true } }, () => {
+        return meta;
+    });
+
+    /** @deprecated: use `:describe-durable` queue instead */
     carotte.subscribe(`${qualifier}:describe`, { queue: { durable: false, autoDelete: true } }, () => {
         return meta;
     });

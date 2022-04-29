@@ -1,0 +1,30 @@
+feat: expose :describe-durable queues
+
+When a queue is set with `exclusive: true, durable: false`, when the
+nodes are recreated during a maintenance, the queues may come into a
+corrupted state where they are still linked to the old node.
+
+When that happens, the `channel.assertQueue` method hangs forever
+without giving an error message, making it particularily hard to debug.
+Also, the only way to fix the corrupted state is to manually delete the
+queue. Automating it is made harder by the fact that the queues in such
+state are not listed in the rabbitmq console, only on the rabbitmq UI.
+
+We cannot simply update the code to provide `durable: true` for
+`:describe` queues, since when the queue already exists, `assertQueue`
+fails with `PRECONDITION_FAILED`, because the options have changed.
+Basically, the options used to initially create the queue are immutable.
+
+The release plan is therefore to:
+
+1. add `:describe-durable` queues, which have `durable: true` and do the
+   same thing, return the `meta` object.
+2. upgrade all agents that publish to the `:describe` queue to
+   publish to the `:describe-durable` queue.
+3. once all agents have been upgraded,
+
+describe queues are used by:
+
+1. `gateway-rest` to discover available controllers, and reject requests
+   made to unknown endpoints (in case carotte describe invoke fails).
+2. `carotte-cli` to retrieve request and response schemas of endpoints
