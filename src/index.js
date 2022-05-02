@@ -73,6 +73,7 @@ function Carotte(config) {
 
     const carotte = {};
 
+    /** @type {Record<string, Promise<amqp.Replies.AssertExchange>>} */
     let exchangeCache = {};
     const correlationIdCache = {};
 
@@ -81,7 +82,9 @@ function Carotte(config) {
     let shutdownPromise = null;
 
     let replyToSubscription;
+    /** @type {Promise<amqp.Connection>} */
     let connexion;
+    /** @type {Record<string | 0, Promise<amqp.Channel>>} */
     let channels = {};
 
     carotte.getConnection = function getConnection() {
@@ -114,7 +117,6 @@ function Carotte(config) {
      * Create or get a channel in cache
      * @param {string} [name] The qualifier name of the channel, if prefetch is 0 this is not used
      * @param {number} [prefetch] The channel prefetch settings
-     * @return {promise} return the channel created
      */
     carotte.getChannel = function getChannel(name = '', prefetch = 0, isDebug = false) {
         prefetch = Number(prefetch);
@@ -225,7 +227,7 @@ function Carotte(config) {
     /**
      * Invoke a function
      * @param {string} qualifier - A message from the consume method
-     * @param {object} [options] - Options for exchange and publish
+     * @param {import('.').CarotteAmqp.PublishOptions} [options] - Options for exchange and publish
      * @param {object} [payload] - Data to send to the function
      * @return {promise} return when message is published
      */
@@ -251,7 +253,10 @@ function Carotte(config) {
             .then(routingKey => {
                 const exchangeName = getExchangeName(options);
                 const rpc = options.headers['x-reply-to'] !== undefined;
-                const { log = true } = options;
+                const {
+                    log = true,
+                    persistent = true
+                } = options;
 
                 // isContentBuffer is used by internal functions who don't modify the content
                 const buffer = options.isContentBuffer
@@ -267,6 +272,7 @@ function Carotte(config) {
 
                 return carotte.getChannel()
                     .then(chan => {
+                        /** @type {Promise<amqp.Replies.AssertExchange>} */
                         let ok;
 
                         if (!exchangeCache[exchangeName]) {
@@ -295,12 +301,14 @@ function Carotte(config) {
                             return chan.publish(
                                 exchangeName,
                                 routingKey,
-                                buffer, {
+                                buffer,
+                                {
                                     headers: Object.assign({}, options.headers, {
                                         'x-carotte-version': carottePackage.version,
                                         'x-origin-service': pkg.name
                                     }),
-                                    contentType: 'application/json'
+                                    contentType: 'application/json',
+                                    persistent
                                 }
                             );
                         });
