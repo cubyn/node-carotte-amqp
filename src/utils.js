@@ -1,5 +1,8 @@
 const clone = require('safe-clone-deep');
+const pLimit = require('p-limit');
 const configs = require('./configs');
+
+const sequential = pLimit(1);
 
 function createDeferred(timeout) {
     const deferred = {};
@@ -134,9 +137,17 @@ function debugDestinationExists(carotte, queue, context) {
 
     // and don't bother with RPC answers
     if (debugToken && !queue.startsWith('amq.gen')) {
-        // get our trashable channel for existance check
-        // because amqp.lib trash the channel with checkQueue :D
-        return carotte.getChannel(debugToken, 1, true)
+        /**
+         * get our trashable channel for existance check
+         * because amqp.lib trash the channel with checkQueue :D
+         *
+         * this may cause race condition when having parallel calls, ex:
+         * 1. the first call result in not found queue
+         * 2. second call made
+         * 3. channel closed
+         * 4. second call will fail as channel is closed
+         */
+        return sequential(() => carotte.getChannel(debugToken, 1, true)
             .then(channel => {
                 const dest = getDebugQueueName(queue, undefined, debugToken);
                 return channel.checkQueue(dest)
@@ -145,7 +156,8 @@ function debugDestinationExists(carotte, queue, context) {
                         context.debugToken = debugToken;
                         return dest;
                     }).catch(err => queue);
-            });
+            })
+        );
     }
 
     return Promise.resolve(queue);
