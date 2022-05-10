@@ -16,7 +16,11 @@ module.exports.subscribeToDescribe = function (carotte, qualifier, meta) {
         qualifier = qualifier.replace(`:${configs.debugToken}`, '');
     }
 
-    carotte.subscribe(`${qualifier}:describe`, { queue: { durable: false, autoDelete: true } }, () => {
+    /**
+     * Previous :describe queues were set with `durable: false` which was causing issues.
+     * Since queue properties are immutable, metas are now exposed on :describe:v2 queues.
+     */
+    carotte.subscribe(`${qualifier}:describe:v2`, { queue: { durable: true, autoDelete: true } }, () => {
         return meta;
     });
 };

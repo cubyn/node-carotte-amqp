@@ -1,4 +1,4 @@
-import { Connection, Channel } from 'amqplib';
+import { Connection, Channel, Options } from 'amqplib';
 
 declare namespace CarotteAmqp {
     interface Logger {
@@ -26,6 +26,17 @@ declare namespace CarotteAmqp {
                 'carotte-host-version': string;
             };
         };
+    };
+
+    type PublishOptions = Pick<Options.Publish,  'persistent'> & {
+        exchangeName?: string;
+        context?: object;
+        headers?: Options.Publish['headers'] & {
+            'x-reply-to'?: string;
+        },
+        log?: boolean;
+        durable?: boolean;
+        isContentBuffer?: boolean;
     };
 
     type SubscribeMeta = {
@@ -99,7 +110,7 @@ declare namespace CarotteAmqp {
          * @param {object} [payload] - Data to send to the function
          * @return {promise} return when message is published
          */
-        publish<Payload = any, Response = any, Options = object>(qualifier: string, options: Options, payload: Payload): Promise<Response>;
+        publish<Payload = any, Response = any, Options extends PublishOptions = object>(qualifier: string, options: Options, payload: Payload): Promise<Response>;
 
         /**
          * Invoke a function
@@ -116,7 +127,7 @@ declare namespace CarotteAmqp {
          * @param {object} payload - Data to send to the function
          * @return {promise} return the function response
          */
-        invoke<Payload = any, Response = any, Options = object>(qualifier: string, options: Options, payload: Payload): Promise<Response>;
+        invoke<Payload = any, Response = any, Options extends PublishOptions = object>(qualifier: string, options: Options, payload: Payload): Promise<Response>;
 
         /**
          * Invoke a function and expect a result

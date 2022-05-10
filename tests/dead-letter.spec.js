@@ -22,11 +22,12 @@ describe('dead-letter', () => {
         .then(() => {
             throw new Error('should not reach here');
         }, err => {
-            // check that the deadletter queue received the right error
-            expect(deadletterError.message).to.eql(ERROR_MESSAGE);
-
             // check that the consumer RPC queue received the right error
             expect(err.message).to.eql(ERROR_MESSAGE);
+
+            expect(deadletterError).not.to.be.undefined;
+            // check that the deadletter queue received the right error
+            expect(deadletterError.message).to.eql(ERROR_MESSAGE);
         });
     });
 });
