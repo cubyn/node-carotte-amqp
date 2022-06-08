@@ -132,6 +132,8 @@ function Carotte(config) {
             .then(chan => {
                 initDebug(`channel ${channelKey} created correctly`);
                 chan.on('close', (err) => {
+                    config.transport.info('carotte-amqp: channel closed', { channelKey });
+
                     channels[channelKey] = undefined;
                     replyToSubscription = undefined;
                     if (!isDebug) {
@@ -770,7 +772,7 @@ function Carotte(config) {
     function logError(error) {
         // when close is initiated by .close(), amqplib
         // emits 'close' without any error
-        if (error) config.transport.error(error);
+        if (error) config.transport.error('carotte-amqp: error caught', { error });
 
         return error;
     }
