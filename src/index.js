@@ -783,17 +783,17 @@ function Carotte(config) {
         autodocAgent.ensureAutodocAgent(carotte);
     }
 
-    function logError(error) {
+    function logError(message, error) {
         // when close is initiated by .close(), amqplib
         // emits 'close' without any error
-        if (error) config.transport.error('carotte-amqp: error caught', { error });
+        if (error) config.transport.error(`carotte-amqp: ${message}`, { error });
 
         return error;
     }
 
-    carotte.onError = logError;
-    carotte.onChannelClose = logError;
-    carotte.onConnectionClose = logError;
+    carotte.onError = error => logError('error caught', error);
+    carotte.onChannelClose = error => logError('channel closed', error);
+    carotte.onConnectionClose = error => logError('connection closed', error);
 
     return carotte;
 }
