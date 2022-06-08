@@ -769,8 +769,11 @@ function Carotte(config) {
                 awaitError = error;
             })
             // finally close RMQ TCP connection
-            .then(() => connexion)
-            .then(c => c.close())
+            .then(() => {
+                if (connexion) {
+                    connexion.close();
+                }
+            })
             .then(() => {
                 if (awaitError) throw awaitError;
                 return awaitedMessages;
