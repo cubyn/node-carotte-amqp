@@ -132,6 +132,8 @@ function Carotte(config) {
             .then(chan => {
                 initDebug(`channel ${channelKey} created correctly`);
                 chan.on('close', (err) => {
+                    config.transport.info('carotte-amqp: channel closed', { channelKey });
+
                     channels[channelKey] = undefined;
                     replyToSubscription = undefined;
                     if (!isDebug) {
@@ -478,6 +480,10 @@ function Carotte(config) {
             // create the queue for this exchange.
             .then(() => chan.assertQueue(queueName, options.queue))
             .then(q => {
+                if (qualifier === '') {
+                    config.transport.info('carotte-amqp: subscribed to rpc queue', { queue: q });
+                }
+
                 consumerDebug(`queue ${q.queue} ready.`);
                 // bind the newly created queue to the chan
 
@@ -582,6 +588,16 @@ function Carotte(config) {
                     .then(() => chan.prefetch(0))
                     .then(identity(q));
                 });
+            })
+            .catch(error => {
+                config.transport.error('carotte-amqp: failed to subscribe queue', {
+                    error,
+                    qualifier,
+                    options,
+                    meta
+                });
+
+                throw error;
             });
     };
 
@@ -767,17 +783,17 @@ function Carotte(config) {
         autodocAgent.ensureAutodocAgent(carotte);
     }
 
-    function logError(error) {
+    function logError(message, error) {
         // when close is initiated by .close(), amqplib
         // emits 'close' without any error
-        if (error) config.transport.error(error);
+        if (error) config.transport.error(`carotte-amqp: ${message}`, { error });
 
         return error;
     }
 
-    carotte.onError = logError;
-    carotte.onChannelClose = logError;
-    carotte.onConnectionClose = logError;
+    carotte.onError = error => logError('error caught', error);
+    carotte.onChannelClose = error => logError('channel closed', error);
+    carotte.onConnectionClose = error => logError('connection closed', error);
 
     return carotte;
 }
