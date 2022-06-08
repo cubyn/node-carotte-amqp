@@ -480,6 +480,10 @@ function Carotte(config) {
             // create the queue for this exchange.
             .then(() => chan.assertQueue(queueName, options.queue))
             .then(q => {
+                if (qualifier === '') {
+                    config.transport.info('carotte-amqp: subscribed to rpc queue', { queue: q });
+                }
+
                 consumerDebug(`queue ${q.queue} ready.`);
                 // bind the newly created queue to the chan
 
