@@ -588,6 +588,16 @@ function Carotte(config) {
                     .then(() => chan.prefetch(0))
                     .then(identity(q));
                 });
+            })
+            .catch(error => {
+                config.transport.error('carotte-amqp: failed to subscribe queue', {
+                    error,
+                    qualifier,
+                    options,
+                    meta
+                });
+
+                throw error;
             });
     };
 
