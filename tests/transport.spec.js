@@ -38,7 +38,8 @@ describe('transport info', () => {
             sinon.match({
                 subscriber: 'hello-transport',
                 request: sinon.match({ query: 'hello-transport' }),
-                response: sinon.match({ result: 'hello-back' })
+                response: sinon.match({ result: 'hello-back' }),
+                executionMs: sinon.match.number
             })
         );
     });
@@ -80,7 +81,8 @@ describe('transport info', () => {
             sinon.match({
                 subscriber: 'throw-transport',
                 request: sinon.match({ query: 'hello' }),
-                error: sinon.match({ status: 500, name: 'CustomError' })
+                error: sinon.match({ status: 500, name: 'CustomError' }),
+                executionMs: sinon.match.number
             })
         );
     });

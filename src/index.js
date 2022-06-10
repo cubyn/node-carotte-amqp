@@ -631,7 +631,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                     return channel.ack(message);
                 })
                 .catch(carotte.handleRetry(qualifier, options, meta,
-                    headers, context, message))
+                    headers, context, message, new Date().getTime() - startTime))
                 .then(result => {
                     messageRegister.finish(qualifier);
                     return result;
@@ -646,12 +646,23 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
     /**
      * Handle the retry when the subscriber handler fail
      * @param {object} qualifier - the qualifier of the subscriber
+     * @param {object} options   - the options
      * @param {object} meta      - the meta of the subscriber
      * @param {object} headers   - the headers handled by the subscriber
+     * @param {object} context   - the context
      * @param {object} message   - the message to republish
+     * @param {number} [executionMs] - the time the handler took before throwing (if applicable)
      */
     carotte.handleRetry =
-    function handleRetry(qualifier, options, meta = {}, headers, context, message) {
+    function handleRetry(
+        qualifier,
+        options,
+        meta = {},
+        headers,
+        context,
+        message,
+        executionMs = null
+    ) {
         return error => {
             const err = (typeof error === 'object')
                 ? error
@@ -673,6 +684,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                     subscriber: qualifier,
                     destination: '',
                     request: JSON.parse(message.content).data,
+                    executionMs,
                     error: err
                 });
 
