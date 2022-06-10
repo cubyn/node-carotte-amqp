@@ -473,18 +473,8 @@ function Carotte(config) {
             .then(ch => {
                 chan = ch;
             })
-            // create the exchange.
-            .then(ch => chan.assertExchange(exchangeName, options.type, {
-                durable: options.durable
-            }))
-            // create the queue for this exchange.
-            .then(() => chan.assertQueue(queueName, options.queue))
+            .then(() => getQueue(chan))
             .then(q => {
-                if (qualifier === '') {
-                    config.transport.info('carotte-amqp: subscribed to rpc queue', { queue: q });
-                }
-
-                consumerDebug(`queue ${q.queue} ready.`);
                 // bind the newly created queue to the chan
 
                 const bindedWith = options.routingKey || q.queue;
@@ -599,6 +589,25 @@ function Carotte(config) {
 
                 throw error;
             });
+
+        /**
+         * @param {amqp.Channel} channel
+         */
+        function getQueue(channel) {
+            // create the exchange if not existing
+            return channel.assertExchange(exchangeName, options.type, {
+                durable: options.durable
+            })
+                // create the queue for this exchange if not existing
+                .then(() => channel.assertQueue(queueName, options.queue))
+                .then((assertQueue) => {
+                    if (qualifier === '') {
+                        config.transport.info('carotte-amqp: subscribed to rpc queue', { queue: assertQueue });
+                    }
+                    consumerDebug(`queue ${assertQueue.queue} ready.`);
+                    return assertQueue;
+                });
+        }
     };
 
     /**
