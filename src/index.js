@@ -548,6 +548,9 @@ function Carotte(config) {
          * @param {amqp.Replies.AssertQueue} assertQueue
          */
         function createConsumer(channel, assertQueue) {
+            /**
+             * @param {amqp.ConsumeMessage} message
+             */
             return (message) => {
                 consumerDebug(`message handled on ${exchangeName} by queue ${assertQueue.queue}`);
                 messageRegister.start(qualifier);
