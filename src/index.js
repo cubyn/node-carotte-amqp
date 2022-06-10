@@ -549,9 +549,18 @@ function Carotte(config) {
          */
         function createConsumer(channel, assertQueue) {
             /**
-             * @param {amqp.ConsumeMessage} message
+             * @param {amqp.ConsumeMessage | null} message
              */
             return (message) => {
+                // https://amqp-node.github.io/amqplib/channel_api.html#channel_consume
+                if (message === null) {
+                    config.transport.error('carotte-amqp: consumer cancelled by rabbitmq', {
+                        subscriber: assertQueue.queue,
+                        exchangeName
+                    });
+                    return Promise.resolve();
+                }
+
                 consumerDebug(`message handled on ${exchangeName} by queue ${assertQueue.queue}`);
                 messageRegister.start(qualifier);
 
