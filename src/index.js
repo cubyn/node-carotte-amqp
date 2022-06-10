@@ -303,7 +303,7 @@ function Carotte(config) {
                                 config.transport.info(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
                                     context: options.context,
                                     headers: options.headers,
-                                    request: payload,
+                                    request: getRequestPayload(payload, options),
                                     subscriber: options.context['origin-consumer'] || '',
                                     destination: qualifier
                                 });
@@ -920,6 +920,25 @@ function getContext(message) {
         return context || {};
     } catch (error) {
         return {};
+    }
+}
+
+
+function getRequestPayload(payload, options) {
+    if (!options.isContentBuffer) {
+        return payload;
+    }
+
+    try {
+        const { data } = JSON.parse(payload.toString());
+
+        if (typeof data === 'undefined') {
+            return payload;
+        }
+
+        return data;
+    } catch (error) {
+        return payload;
     }
 }
 

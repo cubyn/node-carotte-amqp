@@ -107,7 +107,8 @@ describe('transport info', () => {
                 destination: 'broken',
                 headers: sinon.match({
                     'x-retry-count': '1'
-                })
+                }),
+                request: sinon.match({ query: 'hello' })
             })
         );
 
