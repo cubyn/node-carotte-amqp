@@ -475,21 +475,8 @@ function Carotte(config) {
             })
             .then(() => getQueue(chan))
             .then(q => {
-                // bind the newly created queue to the chan
-
-                const bindedWith = options.routingKey || q.queue;
-                return chan.bindQueue(q.queue, exchangeName, bindedWith)
+                return bindQueue(chan, q)
                 .then(() => {
-                    if (qualifier.startsWith('topic/')) {
-                        const resubQualifier = qualifier.split('/');
-                        return chan.bindQueue(q.queue, exchangeName,
-                            `${resubQualifier[resubQualifier.length - 1]}`);
-                    }
-                    return chan;
-                })
-                .then(() => {
-                    consumerDebug(`${q.queue} binded on ${exchangeName} with ${bindedWith}`);
-
                     return chan.prefetch(options.prefetch)
                     .then(() => chan.consume(q.queue, message => {
                         consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
@@ -605,6 +592,27 @@ function Carotte(config) {
                         config.transport.info('carotte-amqp: subscribed to rpc queue', { queue: assertQueue });
                     }
                     consumerDebug(`queue ${assertQueue.queue} ready.`);
+                    return assertQueue;
+                });
+        }
+
+        /**
+         * @param {amqp.Channel} channel
+         * @param {amqp.Replies.AssertQueue} assertQueue
+         */
+        function bindQueue(channel, assertQueue) {
+            const bindedWith = options.routingKey || assertQueue.queue;
+            return channel.bindQueue(assertQueue.queue, exchangeName, bindedWith)
+                .then(() => {
+                    if (qualifier.startsWith('topic/')) {
+                        const resubQualifier = qualifier.split('/');
+                        return channel.bindQueue(assertQueue.queue, exchangeName,
+                            `${resubQualifier[resubQualifier.length - 1]}`);
+                    }
+                    return channel;
+                })
+                .then(() => {
+                    consumerDebug(`${assertQueue.queue} binded on ${exchangeName} with ${bindedWith}`);
                     return assertQueue;
                 });
         }
