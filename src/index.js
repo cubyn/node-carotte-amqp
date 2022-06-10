@@ -897,15 +897,30 @@ function contextifyLogger(context, logger) {
 /**
  * Convert a message from consume to publish options
  * @param {object} qualifier - The exchange, queue formmatted in a string more info in the README.
- * @param {object} message - A message from the consume method
+ * @param {amqp.Message} message - A message from the consume method
  * @return {object} options formatted for the publish method
  */
 function messageToOptions(qualifier, message) {
     return {
+        context: getContext(message),
         headers: message.properties.headers,
         exchangeName: message.fields.exchange,
         isContentBuffer: true
     };
+}
+
+
+/**
+ * @param {amqp.Message} message - A message from the consume method
+ */
+function getContext(message) {
+    try {
+        const { context } = JSON.parse(message.content.toString());
+
+        return context || {};
+    } catch (error) {
+        return {};
+    }
 }
 
 /**

@@ -84,4 +84,32 @@ describe('transport info', () => {
             })
         );
     });
+
+    it('logs retry messages with context', async () => {
+        const context = { transactionId: 'l3vkuzgg000ae2f3731a9wlu' };
+
+        await carotte.subscribe('broken', () => {
+            throw new Error('broken');
+        });
+
+        try {
+            await carotte.invoke('broken', { context }, { query: 'hello' });
+
+            throw new Error('never');
+        } catch (error) {
+            expect(error).to.have.property('message', 'broken');
+        }
+
+        expect(transport.info).to.have.been.calledWithExactly(
+            '▶  direct/broken',
+            sinon.match({
+                context: sinon.match({ transactionId: 'l3vkuzgg000ae2f3731a9wlu' }),
+                destination: 'broken',
+                headers: sinon.match({
+                    'x-retry-count': '1'
+                })
+            })
+        );
+
+    });
 });
