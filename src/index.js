@@ -478,86 +478,11 @@ function Carotte(config) {
                 return bindQueue(chan, q)
                 .then(() => {
                     return chan.prefetch(options.prefetch)
-                    .then(() => chan.consume(q.queue, message => {
-                        consumerDebug(`message handled on ${exchangeName} by queue ${q.queue}`);
-                        messageRegister.start(qualifier);
-
-                        const { headers } = message.properties;
-
-                        const messageStr = message.content.toString();
-                        const content = JSON.parse(messageStr);
-
-                        const { data, context } = content;
-                        const startTime = new Date().getTime();
-                        const rpc = headers['x-reply-to'] !== undefined;
-
-                        context['origin-consumer'] = headers['x-origin-consumer'];
-
-                        if (context.error) {
-                            context.error = deserializeError(context.error);
-                        }
-
-                        if (message.fields.redelivered && !headers['x-ignore-redeliver']) {
-                            return carotte.handleRetry(qualifier, options, meta,
-                                headers, context, message)(new Error('Unhandled message'))
-                                .then(result => {
-                                    messageRegister.finish(qualifier);
-                                    return result;
-                                }, error => {
-                                    messageRegister.finish(qualifier);
-                                    throw error;
-                                });
-                        }
-
-                        // execute the handler inside a try catch block
-                        return execInPromise(handler,
-                            {
-                                data,
-                                headers,
-                                context,
-                                invoke: subPublication(context, 'invoke', qualifier).bind(this),
-                                publish: subPublication(context, 'publish', qualifier).bind(this),
-                                parallel: subPublication(context, 'parallel', qualifier).bind(this),
-                                logger: logger ? contextifyLogger(context, logger) : undefined
-                            })
-                            .then(response => {
-                                const timeNow = new Date().getTime();
-                                autodocAgent.logStats(qualifier,
-                                    timeNow - startTime,
-                                    context['origin-consumer'] || headers['x-origin-service']);
-                                // send back response if needed
-                                return carotte.replyToPublisher(message, response, context)
-                                    // forward response down the chain
-                                    .then(() => response);
-                            })
-                        .then(response => {
-                            consumerDebug('Handler success');
-                            // otherwise internal subscribe (rpc…)
-                            if (qualifier) {
-                                config.transport.info(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
-                                    context,
-                                    headers,
-                                    response,
-                                    request: data,
-                                    subscriber: qualifier,
-                                    destination: '',
-                                    executionMs: new Date().getTime() - startTime,
-                                    deliveryTag: message.fields.deliveryTag
-                                });
-                            }
-
-                            return chan.ack(message);
-                        })
-                        .catch(carotte.handleRetry(qualifier, options, meta,
-                            headers, context, message))
-                        .then(result => {
-                            messageRegister.finish(qualifier);
-                            return result;
-                        }, error => {
-                            messageRegister.finish(qualifier);
-                            throw error;
-                        });
-                    }))
+                    /**
+                     * createConsumer calls subPublication with current this
+                     * hence the need to call createConsumer with same context
+                     */
+                    .then(() => chan.consume(q.queue, createConsumer.call(this, chan, q)))
                     .then(consumer => consumers.push({
                         consumerTag: consumer.consumerTag,
                         chan
@@ -615,6 +540,93 @@ function Carotte(config) {
                     consumerDebug(`${assertQueue.queue} binded on ${exchangeName} with ${bindedWith}`);
                     return assertQueue;
                 });
+        }
+
+        /**
+         * @param {amqp.Channel} channel
+         * @param {amqp.Replies.AssertQueue} assertQueue
+         */
+        function createConsumer(channel, assertQueue) {
+            return (message) => {
+                consumerDebug(`message handled on ${exchangeName} by queue ${assertQueue.queue}`);
+                messageRegister.start(qualifier);
+
+                const { headers } = message.properties;
+
+                const messageStr = message.content.toString();
+                const content = JSON.parse(messageStr);
+
+                const { data, context } = content;
+                const startTime = new Date().getTime();
+                const rpc = headers['x-reply-to'] !== undefined;
+
+                context['origin-consumer'] = headers['x-origin-consumer'];
+
+                if (context.error) {
+                    context.error = deserializeError(context.error);
+                }
+
+                if (message.fields.redelivered && !headers['x-ignore-redeliver']) {
+                    return carotte.handleRetry(qualifier, options, meta,
+                        headers, context, message)(new Error('Unhandled message'))
+                        .then(result => {
+                            messageRegister.finish(qualifier);
+                            return result;
+                        }, error => {
+                            messageRegister.finish(qualifier);
+                            throw error;
+                        });
+                }
+
+                // execute the handler inside a try catch block
+                return execInPromise(handler,
+                    {
+                        data,
+                        headers,
+                        context,
+                        invoke: subPublication(context, 'invoke', qualifier).bind(this),
+                        publish: subPublication(context, 'publish', qualifier).bind(this),
+                        parallel: subPublication(context, 'parallel', qualifier).bind(this),
+                        logger: logger ? contextifyLogger(context, logger) : undefined
+                    })
+                    .then(response => {
+                        const timeNow = new Date().getTime();
+                        autodocAgent.logStats(qualifier,
+                            timeNow - startTime,
+                            context['origin-consumer'] || headers['x-origin-service']);
+                        // send back response if needed
+                        return carotte.replyToPublisher(message, response, context)
+                            // forward response down the chain
+                            .then(() => response);
+                    })
+                .then(response => {
+                    consumerDebug('Handler success');
+                    // otherwise internal subscribe (rpc…)
+                    if (qualifier) {
+                        config.transport.info(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
+                            context,
+                            headers,
+                            response,
+                            request: data,
+                            subscriber: qualifier,
+                            destination: '',
+                            executionMs: new Date().getTime() - startTime,
+                            deliveryTag: message.fields.deliveryTag
+                        });
+                    }
+
+                    return channel.ack(message);
+                })
+                .catch(carotte.handleRetry(qualifier, options, meta,
+                    headers, context, message))
+                .then(result => {
+                    messageRegister.finish(qualifier);
+                    return result;
+                }, error => {
+                    messageRegister.finish(qualifier);
+                    throw error;
+                });
+            };
         }
     };
 
