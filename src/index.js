@@ -568,8 +568,20 @@ function Carotte(config) {
                 }
 
                 if (message.fields.redelivered && !headers['x-ignore-redeliver']) {
-                    return carotte.handleRetry(qualifier, options, meta,
-                        headers, context, message)(new Error('Unhandled message'))
+                    const redeliveredError = new Error(`Unhandled message: redelivered by RabbitMQ
+
+see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
+
+                    redeliveredError.messageProperties = message.properties;
+                    redeliveredError.messageFields = message.fields;
+
+                    return carotte.handleRetry(
+                        qualifier,
+                        options,
+                        meta,
+                        headers,
+                        context,
+                        message)(redeliveredError)
                         .then(result => {
                             messageRegister.finish(qualifier);
                             return result;
