@@ -38,6 +38,8 @@ const errorToRetryRegex = /(311|320|405|506|541)/;
 
 const pkg = getPackageJson();
 
+const RPC_QUALIFIER = '';
+
 /**
  * Create a simple wrapper for amqplib with more functionnalities
  * @constructor
@@ -118,7 +120,7 @@ function Carotte(config) {
      * @param {string} [name] The qualifier name of the channel, if prefetch is 0 this is not used
      * @param {number} [prefetch] The channel prefetch settings
      */
-    carotte.getChannel = function getChannel(name = '', prefetch = 0, isDebug = false) {
+    carotte.getChannel = function getChannel(name = RPC_QUALIFIER, prefetch = 0, isDebug = false) {
         prefetch = Number(prefetch);
         const channelKey = (prefetch > 0) ? `${name}:${prefetch}` : 0;
 
@@ -135,7 +137,9 @@ function Carotte(config) {
                     config.transport.info('carotte-amqp: channel closed', { channelKey });
 
                     channels[channelKey] = undefined;
-                    replyToSubscription = undefined;
+                    if (channelKey === RPC_QUALIFIER) {
+                        replyToSubscription = undefined;
+                    }
                     if (!isDebug) {
                         carotte.cleanExchangeCache();
                         carotte.onChannelClose(err);
@@ -154,7 +158,9 @@ function Carotte(config) {
             })
             .catch(err => {
                 channels[channelKey] = undefined;
-                replyToSubscription = undefined;
+                if (channelKey === RPC_QUALIFIER) {
+                    replyToSubscription = undefined;
+                }
                 if (!isDebug) {
                     carotte.cleanExchangeCache();
                     throw err;
@@ -178,49 +184,52 @@ function Carotte(config) {
      */
     carotte.getRpcQueue = function getRpcQueue() {
         if (!replyToSubscription) {
-            replyToSubscription = carotte.subscribe('', { queue: { exclusive: true, durable: false } }, ({ data, headers, context }) => {
-                const isError = headers['x-error'];
-                const correlationId = headers['x-correlation-id'];
+            replyToSubscription = carotte.subscribe(
+                RPC_QUALIFIER,
+                { queue: { exclusive: true, durable: false } },
+                ({ data, headers, context }) => {
+                    const isError = headers['x-error'];
+                    const correlationId = headers['x-correlation-id'];
 
-                if (correlationId && correlationIdCache[correlationId]) {
-                    consumerDebug(`Found a correlated callback for message: ${correlationId}`);
+                    if (correlationId && correlationIdCache[correlationId]) {
+                        consumerDebug(`Found a correlated callback for message: ${correlationId}`);
 
-                    const deferred = correlationIdCache[correlationId];
+                        const deferred = correlationIdCache[correlationId];
 
-                    // clear the RPC timeout interval if set
-                    clearInterval(deferred.timeoutFunction);
+                        // clear the RPC timeout interval if set
+                        clearInterval(deferred.timeoutFunction);
 
-                    // rpc should not touch transaction context props of parent
-                    const transactionProperties = {
-                        transactionStack: deferred.context.transactionStack,
-                        transactionId: deferred.context.transactionId
-                    };
-                    Object.assign(deferred.context, context, transactionProperties);
+                        // rpc should not touch transaction context props of parent
+                        const transactionProperties = {
+                            transactionStack: deferred.context.transactionStack,
+                            transactionId: deferred.context.transactionId
+                        };
+                        Object.assign(deferred.context, context, transactionProperties);
 
-                    const returnObject = {
-                        headers,
-                        data: isError ? deserializeError(data) : data,
-                        context: deferred.context
-                    };
+                        const returnObject = {
+                            headers,
+                            data: isError ? deserializeError(data) : data,
+                            context: deferred.context
+                        };
 
-                    const answer = deferred.options.completeAnswer ?
-                        returnObject : returnObject.data;
+                        const answer = deferred.options.completeAnswer ?
+                            returnObject : returnObject.data;
 
-                    if (isError) {
-                        if (deferred.reject) {
-                            deferred.reject(answer);
+                        if (isError) {
+                            if (deferred.reject) {
+                                deferred.reject(answer);
+                                delete correlationIdCache[correlationId];
+                            } else {
+                                deferred.callback(returnObject.data, answer);
+                            }
+                        } else if (deferred.resolve) {
+                            deferred.resolve(answer);
                             delete correlationIdCache[correlationId];
                         } else {
-                            deferred.callback(returnObject.data, answer);
+                            deferred.callback(null, answer);
                         }
-                    } else if (deferred.resolve) {
-                        deferred.resolve(answer);
-                        delete correlationIdCache[correlationId];
-                    } else {
-                        deferred.callback(null, answer);
                     }
-                }
-            });
+                });
         }
 
         return replyToSubscription;
@@ -505,7 +514,7 @@ function Carotte(config) {
                 // create the queue for this exchange if not existing
                 .then(() => channel.assertQueue(queueName, options.queue))
                 .then((assertQueue) => {
-                    if (qualifier === '') {
+                    if (qualifier === RPC_QUALIFIER) {
                         config.transport.info('carotte-amqp: subscribed to rpc queue', { queue: assertQueue });
                     }
                     consumerDebug(`queue ${assertQueue.queue} ready.`);
