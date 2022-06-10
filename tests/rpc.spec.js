@@ -1,8 +1,22 @@
 const expect = require('chai').expect;
-const carotte = require('./client')();
+const carotteFactory = require('./client');
+const sinon = require('sinon');
+
+const sandbox = sinon.createSandbox();
 
 describe('rpc', () => {
+    /** @type {ReturnType<carotteFactory>} */
+    let carotte = carotteFactory();
+
+    afterEach(() => {
+        sandbox.restore();
+    });
+
     describe('invoke', () => {
+        beforeEach(() => {
+            carotte = carotteFactory();
+        });
+
         it('should be able to receive a response from a queue', () => {
             return carotte.subscribe('direct/hello-rpc', { queue: { exclusive: true } }, () => {
                 return { a: 1 };
@@ -45,6 +59,48 @@ describe('rpc', () => {
                         done(new Error('Should not execute callback'));
                     });
             });
+        });
+
+        it('should not close and resubscribe if queue does not exist with provided debug token', async () => {
+            const subscribeSpy = sandbox.spy(carotte, 'subscribe');
+            await carotte.subscribe(
+                'direct/hello-rpc-34',
+                { queue: { exclusive: true } },
+                () => ({ a: 2 })
+            );
+
+            const timeout = 200;
+            // classic call
+            await carotte.invoke('direct/hello-rpc-34', { timeout }, {});
+            // queue does not exist and will close the channel
+            await carotte.invoke(
+                'direct/hello-rpc-34',
+                {
+                    context: { debugToken: 'test-nope' },
+                    timeout
+                },
+                {}
+            );
+            try {
+                await carotte.invoke('direct/hello-rpc-56', { timeout }, {});
+            } catch (error) {
+                expect(error).to.be.an.instanceOf(Error);
+                expect(error.message).to.equal(`${timeout}ms timeout reached`);
+            }
+
+            sinon.assert.calledTwice(subscribeSpy);
+            sinon.assert.calledWithExactly(
+                subscribeSpy,
+                'direct/hello-rpc-34',
+                { queue: { exclusive: true } },
+                sinon.match.func
+            );
+            sinon.assert.calledWithExactly(
+                subscribeSpy,
+                '',
+                { queue: { exclusive: true, durable: false } },
+                sinon.match.func
+            );
         });
     });
 
