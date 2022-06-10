@@ -303,7 +303,7 @@ function Carotte(config) {
                                 config.transport.info(`${rpc ? '▶ ' : '▷ '} ${options.type}/${options.routingKey}`, {
                                     context: options.context,
                                     headers: options.headers,
-                                    request: payload,
+                                    request: getRequestPayload(payload, options),
                                     subscriber: options.context['origin-consumer'] || '',
                                     destination: qualifier
                                 });
@@ -643,7 +643,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                     return channel.ack(message);
                 })
                 .catch(carotte.handleRetry(qualifier, options, meta,
-                    headers, context, message))
+                    headers, context, message, new Date().getTime() - startTime))
                 .then(result => {
                     messageRegister.finish(qualifier);
                     return result;
@@ -658,12 +658,23 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
     /**
      * Handle the retry when the subscriber handler fail
      * @param {object} qualifier - the qualifier of the subscriber
+     * @param {object} options   - the options
      * @param {object} meta      - the meta of the subscriber
      * @param {object} headers   - the headers handled by the subscriber
+     * @param {object} context   - the context
      * @param {object} message   - the message to republish
+     * @param {number} [executionMs] - the time the handler took before throwing (if applicable)
      */
     carotte.handleRetry =
-    function handleRetry(qualifier, options, meta = {}, headers, context, message) {
+    function handleRetry(
+        qualifier,
+        options,
+        meta = {},
+        headers,
+        context,
+        message,
+        executionMs = null
+    ) {
         return error => {
             const err = (typeof error === 'object')
                 ? error
@@ -685,6 +696,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                     subscriber: qualifier,
                     destination: '',
                     request: JSON.parse(message.content).data,
+                    executionMs,
                     error: err
                 });
 
@@ -909,15 +921,49 @@ function contextifyLogger(context, logger) {
 /**
  * Convert a message from consume to publish options
  * @param {object} qualifier - The exchange, queue formmatted in a string more info in the README.
- * @param {object} message - A message from the consume method
+ * @param {amqp.Message} message - A message from the consume method
  * @return {object} options formatted for the publish method
  */
 function messageToOptions(qualifier, message) {
     return {
+        context: getContext(message),
         headers: message.properties.headers,
         exchangeName: message.fields.exchange,
         isContentBuffer: true
     };
+}
+
+
+/**
+ * @param {amqp.Message} message - A message from the consume method
+ */
+function getContext(message) {
+    try {
+        const { context } = JSON.parse(message.content.toString());
+
+        return context || {};
+    } catch (error) {
+        return {};
+    }
+}
+
+
+function getRequestPayload(payload, options) {
+    if (!options.isContentBuffer) {
+        return payload;
+    }
+
+    try {
+        const { data } = JSON.parse(payload.toString());
+
+        if (typeof data === 'undefined') {
+            return payload;
+        }
+
+        return data;
+    } catch (error) {
+        return payload;
+    }
 }
 
 /**
