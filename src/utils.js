@@ -23,6 +23,10 @@ function createDeferred(timeout) {
 
 function noop() {}
 
+/**
+ * @template I
+ * @param {I} x
+ */
 function identity(x) {
     return () => x;
 }
