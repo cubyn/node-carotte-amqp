@@ -438,11 +438,8 @@ function Carotte(config) {
      * @param {object} options - Options for queue, exchange and consumer
      * @param {object} handler - The callback consume each new messages
      * @param {object} meta - Meta description of the functions
-     * @return {promise} return a new queue
      */
     carotte.subscribe = function subscribe(qualifier, options, handler, meta, logger = undefined) {
-        let chan;
-
         // options is optionnal thus change the params order
         if (typeof options === 'function') {
             meta = handler;
@@ -470,27 +467,22 @@ function Carotte(config) {
 
         // once channel is ready
         return carotte.getChannel(qualifier, options.prefetch)
-            .then(ch => {
-                chan = ch;
-            })
-            .then(() => getQueue(chan))
-            .then(q => {
-                return bindQueue(chan, q)
-                .then(() => {
-                    return chan.prefetch(options.prefetch)
+            .then(channel => getQueue(channel)
+                .then(q => bindQueue(channel, q)
+                    .then(() => channel.prefetch(options.prefetch))
                     /**
                      * createConsumer calls subPublication with current this
                      * hence the need to call createConsumer with same context
                      */
-                    .then(() => chan.consume(q.queue, createConsumer.call(this, chan, q)))
+                    .then(() => channel.consume(q.queue, createConsumer.call(this, channel, q)))
                     .then(consumer => consumers.push({
                         consumerTag: consumer.consumerTag,
-                        chan
+                        chan: channel
                     }))
-                    .then(() => chan.prefetch(0))
-                    .then(identity(q));
-                });
-            })
+                    .then(() => channel.prefetch(0))
+                    .then(identity(q))
+                )
+            )
             .catch(error => {
                 config.transport.error('carotte-amqp: failed to subscribe queue', {
                     error,
