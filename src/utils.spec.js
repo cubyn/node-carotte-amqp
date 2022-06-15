@@ -73,9 +73,12 @@ describe('utils', () => {
     });
 
     describe('serializeError', () => {
-        it('should return an object with all error properties including own properties', () => {
+        it('should return an object with all error properties not including own properties', () => {
             const error = new Error('hello');
             error.status = 400;
+            Object.defineProperty(error, 'hidden', { value: true });
+            expect(error.hidden).to.equal(true);
+
             const serialized = utils.serializeError(error);
 
             expect(serialized).to.be.an('object');
@@ -84,6 +87,23 @@ describe('utils', () => {
             expect(serialized.status).to.be.an('number')
                 .to.equal(400);
             expect(serialized.stack).to.be.an('string');
+            expect(serialized.hidden).to.be.undefined;
+        });
+
+        // especially important when the dead-letter is caused by an axios error
+        it('uses .toJSON() method if it exists', () => {
+            const error = new Error('hello');
+            error.toJSON = function () {
+                return { message: 'Error: hello' };
+            };
+            error.hidden = true;
+            expect(error.hidden).to.equal(true);
+
+            const serialized = utils.serializeError(error);
+
+            expect(serialized).to.be.an('object');
+            expect(serialized.message).to.equal('Error: hello');
+            expect(serialized.hidden).to.be.undefined;
         });
     });
 });

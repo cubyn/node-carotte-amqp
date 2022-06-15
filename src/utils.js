@@ -85,16 +85,7 @@ function deserializeError(inputError) {
 }
 
 function serializeError(err) {
-    var extractedError = {};
-
-    err = clone(err);
-
-    // properties of err can be non enumerable
-    Object.getOwnPropertyNames(err).forEach(key => {
-        extractedError[key] = err[key];
-    });
-
-    return extend(extractedError, err);
+    return JSON.parse(JSON.stringify(clone(err)));
 }
 
 /**
