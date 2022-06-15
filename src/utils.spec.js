@@ -105,5 +105,15 @@ describe('utils', () => {
             expect(serialized.message).to.equal('Error: hello');
             expect(serialized.hidden).to.be.undefined;
         });
+
+        it('can serialize errors with a cycle', () => {
+            const error = new Error('hello');
+            error.cycle = error;
+
+            const serialized = utils.serializeError(error);
+
+            expect(serialized).to.be.an('object');
+            expect(serialized.message).to.equal('hello');
+        });
     });
 });
