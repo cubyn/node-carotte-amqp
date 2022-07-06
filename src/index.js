@@ -474,34 +474,68 @@ function Carotte(config) {
         const exchangeName = getExchangeName(options);
         const queueName = getQueueName(options, config);
 
-        // once channel is ready
-        return carotte.getChannel(qualifier, options.prefetch)
-            .then(channel => getQueue(channel)
-                .then(q => bindQueue(channel, q)
-                    .then(() => channel.prefetch(options.prefetch))
+        return Promise.race([
+            new Promise((_resolve, reject) => {
+                setTimeout(() => {
                     /**
-                     * createConsumer calls subPublication with current this
-                     * hence the need to call createConsumer with same context
+                     * We've seen during some RabbitMQ maintenance that for some queues, the binding
+                     * step can hang forever. It seems this happens when RabbitMQ reaches a corrupt
+                     * state where the queue is still referenced in its internal database, but
+                     * references a node that doesn't exist anymore.
+                     *
+                     * When that happened, it led to situations where the service was consuming
+                     * messages only of some queues. In particular, we faced a situation where the
+                     * "listener" queues of a given service were gone, such that some topics were
+                     * never processed by the service, creating major data inconsistencies and
+                     * leading to one of the worst business days at Cubyn in years.
+                     *
+                     * It also led to describe queues to not have any consumer, such that gateway
+                     * rest wasn't discovering the controllers. It made some endpoints unavailable,
+                     * but at least it wasn't creating a false sense that the feature was working.
+                     *
+                     * We don't know how to reproduce that issue, but we know that solving it was
+                     * easy as forcing all pods to restart again (= rollout restart). Enforcing a
+                     * timeout on the subscription will effectively create the same behavior,
+                     * allowing the service to auto-repair itself.
                      */
-                    .then(() => channel.consume(q.queue, createConsumer.call(this, channel, q)))
-                    .then(consumer => consumers.push({
-                        consumerTag: consumer.consumerTag,
-                        chan: channel
-                    }))
-                    .then(() => channel.prefetch(0))
-                    .then(identity(q))
-                )
-            )
-            .catch(error => {
-                config.transport.error('carotte-amqp: failed to subscribe queue', {
-                    error,
-                    qualifier,
-                    options,
-                    meta
-                });
+                    const error = new Error('carotte subscription timeout');
+                    error.qualifier = qualifier;
+                    error.options = options;
+                    error.meta = meta;
 
-                throw error;
-            });
+                    reject(error);
+                }, options.subscriptionTimeout);
+            }),
+            // once channel is ready
+            carotte.getChannel(qualifier, options.prefetch)
+                .then(channel => getQueue(channel)
+                    .then(q => bindQueue(channel, q)
+                        .then(() => channel.prefetch(options.prefetch))
+                        /**
+                         * createConsumer calls subPublication with current this
+                         * hence the need to call createConsumer with same context
+                         */
+                        .then(() => channel.consume(q.queue, createConsumer.call(this, channel, q)))
+                        .then(consumer => consumers.push({
+                            consumerTag: consumer.consumerTag,
+                            chan: channel
+                        }))
+                        .then(() => channel.prefetch(0))
+                        .then(identity(q))
+                    )
+                )
+                .catch(error => {
+                    config.transport.error('carotte-amqp: failed to subscribe queue', {
+                        error,
+                        qualifier,
+                        options,
+                        meta
+                    });
+
+                    throw error;
+                })
+        ]);
+
 
         /**
          * @param {amqp.Channel} channel

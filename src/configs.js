@@ -60,7 +60,9 @@ function parseSubscriptionOptions(options, qualifier) {
         routingKey: '',
         durable: true,
         queue: {},
-        exchange: {}
+        exchange: {},
+        // 1 minute
+        subscriptionTimeout: 60000
     }, options, parseQualifier(qualifier));
 
     options.queue = Object.assign({

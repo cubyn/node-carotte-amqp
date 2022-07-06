@@ -202,4 +202,18 @@ describe('subscriber', () => {
             });
         });
     });
+
+    describe('when subscribing to the queue takes more time than the configured timeout', () => {
+        it('times out', () => {
+            return carotte.subscribe('configured-timeout-is-too-short', { subscriptionTimeout: 1 }, () => {})
+                .then(
+                    () => {
+                        throw new Error('subscribe must reject');
+                    },
+                    (error) => {
+                        expect(error.message).to.eql('carotte subscription timeout');
+                    }
+                );
+        });
+    });
 });
