@@ -592,7 +592,9 @@ function Carotte(config) {
                         subscriber: assertQueue.queue,
                         exchangeName
                     });
-                    return Promise.resolve();
+
+                    // we throw an error to trigger a restart of the service
+                    throw new Error('carotte consumer cancelled');
                 }
 
                 consumerDebug(`message handled on ${exchangeName} by queue ${assertQueue.queue}`);
