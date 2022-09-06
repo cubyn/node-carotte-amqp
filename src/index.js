@@ -462,10 +462,11 @@ function Carotte(config) {
             qualifier = getDebugQueueName(qualifier, options);
         }
 
+        const promises = [];
         if (meta) {
             autodocAgent.addSubscriber(qualifier, meta);
             if (config.autoDescribe) {
-                describe.subscribeToDescribe(this, qualifier, meta);
+                promises.push(describe.subscribeToDescribe(this, qualifier, meta));
             }
         }
 
@@ -474,7 +475,7 @@ function Carotte(config) {
         const exchangeName = getExchangeName(options);
         const queueName = getQueueName(options, config);
 
-        return Promise.race([
+        return Promise.race(promises.concat([
             new Promise((_resolve, reject) => {
                 setTimeout(() => {
                     /**
@@ -534,7 +535,7 @@ function Carotte(config) {
 
                     throw error;
                 })
-        ]);
+        ]));
 
 
         /**
