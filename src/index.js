@@ -1017,6 +1017,9 @@ function incrementRetryHeaders(options, retry) {
     if (!('x-retry-strategy' in options.headers)) {
         newHeaders['x-retry-strategy'] = `${retry.strategy}`;
     }
+    if (!('x-retry-exponential-rate' in options.headers)) {
+        newHeaders['x-retry-exponential-rate'] = `${retry.exponentialRate}`;
+    }
     if (!('x-retry-interval' in options.headers)) {
         newHeaders['x-retry-interval'] = `${retry.interval}`;
     }
@@ -1041,7 +1044,8 @@ function cleanRetryHeaders(headers) {
         'x-retry-max',
         'x-retry-count',
         'x-retry-strategy',
-        'x-retry-interval'
+        'x-retry-interval',
+        'x-retry-exponential-rate'
     ]);
 }
 
@@ -1054,11 +1058,12 @@ function computeNextCall(headers) {
     const strategy = headers['x-retry-strategy'];
     const current = Number(headers['x-retry-count']);
     const interval = Number(headers['x-retry-interval'] || 0);
+    const exponentialRate = Number(headers['x-retry-exponential-rate'] || 2);
 
     switch (strategy) {
         case 'exponential': {
             // eslint-disable-next-line no-restricted-properties
-            return Math.pow(2, current - 1) * interval;
+            return Math.pow(exponentialRate, current - 1) * interval;
         }
         case 'direct':
         default: return interval;
