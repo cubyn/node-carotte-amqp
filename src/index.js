@@ -474,9 +474,11 @@ function Carotte(config) {
         const exchangeName = getExchangeName(options);
         const queueName = getQueueName(options, config);
 
+        let subscriptionTimeout = null;
+
         return Promise.race([
             new Promise((_resolve, reject) => {
-                setTimeout(() => {
+                subscriptionTimeout = setTimeout(() => {
                     /**
                      * We've seen during some RabbitMQ maintenance that for some queues, the binding
                      * step can hang forever. It seems this happens when RabbitMQ reaches a corrupt
@@ -534,6 +536,7 @@ function Carotte(config) {
 
                     throw error;
                 })
+                .finally(() => clearTimeout(subscriptionTimeout))
         ]);
 
 
