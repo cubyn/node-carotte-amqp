@@ -12,6 +12,32 @@ describe('rpc', () => {
         sandbox.restore();
     });
 
+    describe('shutdown', () => {
+        beforeEach(() => {
+            carotte = carotteFactory();
+        });
+
+        describe('when connection has been initialized', () => {
+            it('shutdowns the client', () => {
+                return carotte
+            .subscribe(
+              'fanout/abcdef',
+              { exchangeName: 'test2', queue: { exclusive: true } },
+              ({ data }) => data
+            )
+            .then(() => {
+                return carotte.shutdown();
+            });
+            }).timeout(5000);
+        });
+
+        describe('when connection has NOT been initialized', () => {
+            it('shutdowns the client', () => {
+                return carotte.shutdown();
+            }).timeout(5000);
+        });
+    });
+
     describe('invoke', () => {
         beforeEach(() => {
             carotte = carotteFactory();

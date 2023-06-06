@@ -875,7 +875,9 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
             })
             // finally close RMQ TCP connection
             .then(() => connexion)
-            .then(c => c.close())
+            .then((c) => {
+                if (c) c.close();
+            })
             .then(() => {
                 if (awaitError) throw awaitError;
                 return awaitedMessages;
