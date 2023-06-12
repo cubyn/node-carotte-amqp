@@ -1,5 +1,6 @@
 const { join } = require('path');
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
+const { emptyTransport } = require('./utils');
 
 function parseQualifier(qualifier) {
     let [
@@ -55,7 +56,7 @@ function getQueueName(options, config) {
     return '';
 }
 
-function parseSubscriptionOptions(options, qualifier) {
+function parseSubscriptionOptions(options, qualifier, config) {
     options = Object.assign({
         routingKey: '',
         durable: true,
@@ -77,6 +78,10 @@ function parseSubscriptionOptions(options, qualifier) {
     options.exchange = Object.assign({
         durable: true
     }, options.exchange);
+
+    options.transport = options.transport === null
+        ? emptyTransport
+        : (options.transport || config.transport);
 
     return options;
 }
