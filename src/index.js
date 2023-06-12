@@ -469,14 +469,16 @@ function Carotte(config) {
             }
         }
 
-        options = parseSubscriptionOptions(options, qualifier);
+        options = parseSubscriptionOptions(options, qualifier, config);
 
         const exchangeName = getExchangeName(options);
         const queueName = getQueueName(options, config);
 
+        let subscriptionTimeout = null;
+
         return Promise.race([
             new Promise((_resolve, reject) => {
-                setTimeout(() => {
+                subscriptionTimeout = setTimeout(() => {
                     /**
                      * We've seen during some RabbitMQ maintenance that for some queues, the binding
                      * step can hang forever. It seems this happens when RabbitMQ reaches a corrupt
@@ -534,6 +536,7 @@ function Carotte(config) {
 
                     throw error;
                 })
+                .finally(() => clearTimeout(subscriptionTimeout))
         ]);
 
 
@@ -664,7 +667,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                     consumerDebug('Handler success');
                     // otherwise internal subscribe (rpc…)
                     if (qualifier) {
-                        config.transport.info(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
+                        options.transport.info(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                             context,
                             headers,
                             response,
@@ -726,7 +729,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                 const pubOptions = messageToOptions(qualifier, message);
                 const rpc = headers['x-reply-to'] !== undefined;
 
-                config.transport.error(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
+                options.transport.error(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                     context,
                     headers,
                     subscriber: qualifier,
@@ -872,7 +875,9 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
             })
             // finally close RMQ TCP connection
             .then(() => connexion)
-            .then(c => c.close())
+            .then((c) => {
+                if (c) c.close();
+            })
             .then(() => {
                 if (awaitError) throw awaitError;
                 return awaitedMessages;

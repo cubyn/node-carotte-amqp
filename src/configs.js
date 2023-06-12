@@ -55,14 +55,18 @@ function getQueueName(options, config) {
     return '';
 }
 
-function parseSubscriptionOptions(options, qualifier) {
+function parseSubscriptionOptions(options, qualifier, config) {
     options = Object.assign({
         routingKey: '',
         durable: true,
         queue: {},
         exchange: {},
         // 1 minute
-        subscriptionTimeout: 60000
+        subscriptionTimeout: 60000,
+        // undefined means root transport, from config
+        // null means no transport
+        // otherwise, override
+        transport: undefined
     }, options, parseQualifier(qualifier));
 
     options.queue = Object.assign({
@@ -73,6 +77,15 @@ function parseSubscriptionOptions(options, qualifier) {
     options.exchange = Object.assign({
         durable: true
     }, options.exchange);
+
+    options.transport = options.transport === null
+        ? {
+            log: () => {},
+            info: () => {},
+            error: () => {},
+            warn: () => {}
+        }
+        : (options.transport || config.transport);
 
     return options;
 }
