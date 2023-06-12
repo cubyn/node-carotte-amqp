@@ -1,6 +1,5 @@
 const { join } = require('path');
 const { EXCHANGE_TYPE, EXCHANGES_AVAILABLE } = require('./constants');
-const { emptyTransport } = require('./utils');
 
 function parseQualifier(qualifier) {
     let [
@@ -80,7 +79,12 @@ function parseSubscriptionOptions(options, qualifier, config) {
     }, options.exchange);
 
     options.transport = options.transport === null
-        ? emptyTransport
+        ? {
+            log: () => {},
+            info: () => {},
+            error: () => {},
+            warn: () => {}
+        }
         : (options.transport || config.transport);
 
     return options;
