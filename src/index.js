@@ -469,7 +469,7 @@ function Carotte(config) {
             }
         }
 
-        options = parseSubscriptionOptions(options, qualifier);
+        options = parseSubscriptionOptions(options, qualifier, config);
 
         const exchangeName = getExchangeName(options);
         const queueName = getQueueName(options, config);
@@ -667,7 +667,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                     consumerDebug('Handler success');
                     // otherwise internal subscribe (rpc…)
                     if (qualifier) {
-                        config.transport.info(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
+                        options.transport.info(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                             context,
                             headers,
                             response,
@@ -729,7 +729,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                 const pubOptions = messageToOptions(qualifier, message);
                 const rpc = headers['x-reply-to'] !== undefined;
 
-                config.transport.error(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
+                options.transport.error(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                     context,
                     headers,
                     subscriber: qualifier,
