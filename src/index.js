@@ -729,7 +729,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                 const pubOptions = messageToOptions(qualifier, message);
                 const rpc = headers['x-reply-to'] !== undefined;
 
-                config.transport.error(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
+                options.transport.error(`${rpc ? '◀ ' : '◁ '} ${qualifier}`, {
                     context,
                     headers,
                     subscriber: qualifier,
