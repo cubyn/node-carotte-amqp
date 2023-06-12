@@ -62,7 +62,11 @@ function parseSubscriptionOptions(options, qualifier) {
         queue: {},
         exchange: {},
         // 1 minute
-        subscriptionTimeout: 60000
+        subscriptionTimeout: 60000,
+        // undefined means root transport, from config
+        // null means no transport
+        // otherwise, override
+        transport: undefined
     }, options, parseQualifier(qualifier));
 
     options.queue = Object.assign({

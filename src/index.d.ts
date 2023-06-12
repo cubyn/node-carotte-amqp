@@ -66,6 +66,14 @@ declare namespace CarotteAmqp {
             durable: boolean;
         };
         prefetch?: number;
+        /**
+         * Override or deactivate the root transport for this subscriber ONLY.
+         * 
+         * undefined means the root transport (from config) will be used
+         * null means transport will be deactivated
+         * otherwise the value will be used as transport
+         */
+        transport?: Logger | null;
     };
 
     type SubscribeHandlerParameter = {
