@@ -296,6 +296,7 @@ function Carotte(config) {
                                     context: options.context,
                                     headers: options.headers,
                                     request: getRequestPayload(payload, options),
+                                    requestSize: buffer.length,
                                     subscriber: options.context['origin-consumer'] || '',
                                     destination: qualifier
                                 });
@@ -321,6 +322,7 @@ function Carotte(config) {
                             context: options.context,
                             headers: options.headers,
                             request: payload,
+                            requestSize: buffer.length,
                             subscriber: options.context['origin-consumer'] || '',
                             destination: qualifier,
                             error: err
@@ -663,7 +665,9 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                             context,
                             headers,
                             response,
+                            responseSize: getBufferPayload(response, { context }).length,
                             request: data,
+                            requestSize: message.content.length,
                             subscriber: qualifier,
                             destination: '',
                             executionMs: new Date().getTime() - startTime,
@@ -727,8 +731,10 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                     subscriber: qualifier,
                     destination: '',
                     request: JSON.parse(message.content).data,
+                    requestSize: message.content.length,
                     executionMs: startTime ? new Date().getTime() - startTime : null,
-                    error: err
+                    error: err,
+                    errorSize: Buffer.from(JSON.stringify(serializeError(err))).length
                 });
 
                 // if custom error thrown, we want to forward it to producer
