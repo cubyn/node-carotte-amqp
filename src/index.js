@@ -269,15 +269,7 @@ function Carotte(config) {
                     persistent = true
                 } = options;
 
-                // isContentBuffer is used by internal functions who don't modify the content
-                const buffer = options.isContentBuffer
-                    ? payload
-                    : Buffer.from(JSON.stringify({
-                        data: payload,
-                        context: Object.assign({}, options.context, {
-                            transactionStack: getTransactionStack(options.context)
-                        })
-                    }));
+                const buffer = getBufferPayload(payload, options);
 
                 producerDebug('called');
 
@@ -988,7 +980,11 @@ function getContext(message) {
     }
 }
 
-
+/**
+ *
+ * @param {Buffer} payload
+ * @param {*} options
+ */
 function getRequestPayload(payload, options) {
     if (!options.isContentBuffer) {
         return payload;
@@ -1005,6 +1001,26 @@ function getRequestPayload(payload, options) {
     } catch (error) {
         return payload;
     }
+}
+
+/**
+ *
+ * @param {*} payload
+ * @param {{ isContentBuffer?: boolean; context: any }} options
+ * @returns {Buffer}
+ */
+function getBufferPayload(payload, options) {
+    // isContentBuffer is used by internal functions who don't modify the content
+    if (options.isContentBuffer) {
+        return payload;
+    }
+
+    return Buffer.from(JSON.stringify({
+        data: payload,
+        context: Object.assign({}, options.context, {
+            transactionStack: getTransactionStack(options.context)
+        })
+    }));
 }
 
 /**
