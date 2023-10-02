@@ -87,7 +87,8 @@ describe('transport info', () => {
                 request: sinon.match({ query: 'hello' }),
                 requestSize: 66,
                 error: sinon.match({ status: 500, name: 'CustomError' }),
-                errorSize: 1543,
+                // exact size depends on the stack trace
+                errorSize: sinon.match.number,
                 executionMs: sinon.match.number
             })
         );
