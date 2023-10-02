@@ -7,13 +7,15 @@ const carotte = require('./client')({
 const ERROR_MESSAGE = 'Woopsy!';
 
 describe('dead-letter', () => {
-    it('should send message in dead-letter queue when failing', () => {
-        let deadletterError;
-
-        return carotte.subscribe('dead-letter', ({ context, headers }) => {
+    it('should send message in dead-letter queue when failing', (done) => {
+        carotte.subscribe('dead-letter', ({ context, headers }) => {
             // we don't have a way to unsubscribe yet so we filter dead-letters
             // that are sent in other tests using this condition
-            deadletterError = context.error;
+            if (context.error.message !== ERROR_MESSAGE) {
+                return;
+            }
+
+            done();
         })
         .then(() => carotte.subscribe('direct/this-one-is-broken', () => {
             throw new Error(ERROR_MESSAGE);
@@ -24,10 +26,6 @@ describe('dead-letter', () => {
         }, err => {
             // check that the consumer RPC queue received the right error
             expect(err.message).to.eql(ERROR_MESSAGE);
-
-            expect(deadletterError).not.to.be.undefined;
-            // check that the deadletter queue received the right error
-            expect(deadletterError.message).to.eql(ERROR_MESSAGE);
         });
     });
 });
