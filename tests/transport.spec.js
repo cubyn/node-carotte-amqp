@@ -29,7 +29,8 @@ describe('transport info', () => {
             '▶  direct/hello-transport',
             sinon.match({
                 destination: 'hello-transport',
-                request: sinon.match({ query: 'hello-transport' })
+                request: sinon.match({ query: 'hello-transport' }),
+                requestSize: 76
             })
         );
 
@@ -38,7 +39,9 @@ describe('transport info', () => {
             sinon.match({
                 subscriber: 'hello-transport',
                 request: sinon.match({ query: 'hello-transport' }),
+                requestSize: 76,
                 response: sinon.match({ result: 'hello-back' }),
+                responseSize: 79,
                 executionMs: sinon.match.number
             })
         );
@@ -72,7 +75,8 @@ describe('transport info', () => {
             '▶  direct/throw-transport',
             sinon.match({
                 destination: 'throw-transport',
-                request: sinon.match({ query: 'hello' })
+                request: sinon.match({ query: 'hello' }),
+                requestSize: 66
             })
         );
 
@@ -81,7 +85,10 @@ describe('transport info', () => {
             sinon.match({
                 subscriber: 'throw-transport',
                 request: sinon.match({ query: 'hello' }),
+                requestSize: 66,
                 error: sinon.match({ status: 500, name: 'CustomError' }),
+                // exact size depends on the stack trace
+                errorSize: sinon.match.number,
                 executionMs: sinon.match.number
             })
         );
@@ -110,7 +117,8 @@ describe('transport info', () => {
                 headers: sinon.match({
                     'x-retry-count': '1'
                 }),
-                request: sinon.match({ query: 'hello' })
+                request: sinon.match({ query: 'hello' }),
+                requestSize: 109
             })
         );
 
