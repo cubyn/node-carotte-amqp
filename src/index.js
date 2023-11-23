@@ -770,8 +770,8 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
                         );
                         return carotte.replyToPublisher(message, err, context, true);
                     })
-                .then(() => chan.ack(message))
-                .catch(() => chan.nack(message));
+                    .then(() => chan.ack(message))
+                    .catch(() => chan.nack(message));
             });
         };
     };
@@ -783,11 +783,14 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
      */
     carotte.saveDeadLetterIfNeeded = function saveDeadLetterIfNeeded(message, error) {
         if (config.enableDeadLetter) {
-            const headers = message.properties.headers;
             const content = JSON.parse(message.content.toString());
             content.context.error = serializeError(error);
 
-            headers['x-ignore-redeliver'] = true;
+            message.properties.headers['x-ignore-redeliver'] = true;
+            const headers = Object.assign({}, message.properties.headers);
+            // dead letter consumer should not generate a message for any consumer
+            delete headers['x-reply-to'];
+            delete headers['x-correlation-id'];
 
             // we use content buffer so we don't have to alter object structure
             // { data: , context: }
