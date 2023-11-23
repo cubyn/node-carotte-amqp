@@ -1,6 +1,6 @@
 {
   "name": "carotte-amqp",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "description": "AMQP wrapper for the carotte microservice framework",
   "main": "src/index.js",
   "types": "src/index.d.ts",
