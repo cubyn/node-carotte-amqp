@@ -720,7 +720,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
             return carotte.getChannel(qualifier, options.prefetch)
             .then(chan => {
                 /** @type {Required<import('.').CarotteAmqp.SubscribeMeta['retry']>} */
-                const retry = meta.retry || { max: 5, strategy: 'direct', interval: 0 };
+                const retry = meta.retry || { max: 5, strategy: 'direct', interval: 0, jitter: 0 };
 
                 const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
                 const pubOptions = messageToOptions(qualifier, message);

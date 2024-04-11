@@ -32,6 +32,7 @@ declare namespace CarotteAmqp {
         'x-retry-max': string;
         'x-retry-strategy': 'direct' | 'exponential' | 'fixed';
         'x-retry-interval'?: string;
+        'x-retry-jitter'?: string;
         'x-retry-count': string;
     };
 
@@ -57,6 +58,8 @@ declare namespace CarotteAmqp {
             max?: number;
             interval?: number;
             strategy?: 'direct' | 'exponential' | 'fixed';
+            /** Jitter range to add a random delay */
+            jitter?: number;
         };
     };
 

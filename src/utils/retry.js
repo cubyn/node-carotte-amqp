@@ -11,7 +11,8 @@ function cleanRetryHeaders(headers) {
         'x-retry-max',
         'x-retry-count',
         'x-retry-strategy',
-        'x-retry-interval'
+        'x-retry-interval',
+        'x-retry-jitter'
     ]);
 }
 
@@ -24,14 +25,16 @@ function computeNextCall(headers) {
     const strategy = headers['x-retry-strategy'];
     const current = Number(headers['x-retry-count']);
     const interval = Number(headers['x-retry-interval'] || 0);
+    const jitterRange = Number(headers['x-retry-jitter'] || 0);
+    const jitter = Math.floor(Math.random() * jitterRange);
 
     switch (strategy) {
         case 'exponential': {
             // eslint-disable-next-line no-restricted-properties
-            return Math.pow(2, current - 1) * interval;
+            return Math.pow(2, current - 1) * interval + jitter;
         }
         case 'direct':
-        default: return interval;
+        default: return interval + jitter;
     }
 }
 
@@ -51,6 +54,9 @@ function incrementRetryHeaders(options, retry) {
     }
     if (!('x-retry-interval' in options.headers)) {
         newHeaders['x-retry-interval'] = `${retry.interval}`;
+    }
+    if (!('x-retry-jitter' in options.headers) && retry.jitter) {
+        newHeaders['x-retry-jitter'] = `${retry.jitter}`;
     }
     if (!('x-retry-count' in options.headers)) {
         newHeaders['x-retry-count'] = '1';
