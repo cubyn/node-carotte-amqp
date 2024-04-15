@@ -192,6 +192,39 @@ carotte.invoke('direct/increment:describe')
 
 This structure is also used in [carotte-dashboard](https://github.com/cubyn/carotte-dashboard) to auto-document your microservices architecture. You can find more information about how it works on the dashboard repository.
 
+## Automatic Retry
+You can set a retry strategy to automatically catch exceptions and execute remote executions again. This is done using the `meta` parameter in your `subscribe` functions.
+
+| property | type   | required | description |
+| -------- | ------ | -------- | ----------- |
+| max      | int    | y        | maximum number of attempt |
+| interval | int    | n        | interval between attempts (depends on strategy) |
+| strategy | string | n        | either `direct`, `fixed` or `exponential` |
+| jitter   | int    | n        | maximum random delay to add between attempts |
+
+If you don't set any (no presence of `retry` property in `meta`), the default one will be taken into account:
+- max: 5
+- strategy: 'direct'
+- interval: 0
+- jitter: 0
+
+```js
+const carotte = require('carotte-amqp')({});
+
+carotte.subscribe(
+    'direct/increment',
+    ({ data } => data + 1),
+    {
+        retry: {
+            max: 2,
+            strategy: 'exponential',
+            interval: 5,
+            jitter: 10
+        }
+    }
+);
+```
+
 
 ## Working together
 When multiple devs are working on multiple microservices, you can use environment variables to be able to communicate with each other. To do so, the developers must set the `CAROTTE_DEBUG_TOKEN` env variable to a shared string before launching their services.
