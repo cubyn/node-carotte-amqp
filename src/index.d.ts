@@ -28,12 +28,20 @@ declare namespace CarotteAmqp {
         };
     };
 
+    type RetryHeaders = {
+        'x-retry-max': string;
+        'x-retry-strategy': 'direct' | 'exponential' | 'fixed';
+        'x-retry-interval'?: string;
+        'x-retry-jitter'?: string;
+        'x-retry-count': string;
+    };
+
     type PublishOptions = Pick<Options.Publish,  'persistent'> & {
         exchangeName?: string;
         context?: object;
         headers?: Options.Publish['headers'] & {
             'x-reply-to'?: string;
-        },
+        };
         log?: boolean;
         durable?: boolean;
         isContentBuffer?: boolean;
@@ -50,6 +58,8 @@ declare namespace CarotteAmqp {
             max?: number;
             interval?: number;
             strategy?: 'direct' | 'exponential' | 'fixed';
+            /** Jitter range to add a random delay */
+            jitter?: number;
         };
     };
 
@@ -68,7 +78,7 @@ declare namespace CarotteAmqp {
         prefetch?: number;
         /**
          * Override or deactivate the root transport for this subscriber ONLY.
-         * 
+         *
          * undefined means the root transport (from config) will be used
          * null means transport will be deactivated
          * otherwise the value will be used as transport
