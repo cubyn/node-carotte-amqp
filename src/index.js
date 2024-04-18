@@ -15,7 +15,6 @@ const {
     identity,
     deserializeError,
     serializeError,
-    extend,
     emptyTransport,
     getTransactionStack,
     debugDestinationExists,
@@ -28,6 +27,7 @@ const {
     getQueueName,
     parseSubscriptionOptions
 } = require('./configs');
+const { incrementRetryHeaders, computeNextCall, cleanRetryHeaders } = require('./utils/retry');
 
 const puid = new Puid();
 const initDebug = debug('carotte:init');
@@ -694,7 +694,7 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
      * Handle the retry when the subscriber handler fail
      * @param {object} qualifier - the qualifier of the subscriber
      * @param {object} options   - the options
-     * @param {object} meta      - the meta of the subscriber
+     * @param {import('.').CarotteAmqp.SubscribeMeta} meta      - the meta of the subscriber
      * @param {object} headers   - the headers handled by the subscriber
      * @param {object} context   - the context
      * @param {object} message   - the message to republish
@@ -719,7 +719,8 @@ see doc: https://www.rabbitmq.com/reliability.html#consumer-side`);
             // otherwise channel is borked =)
             return carotte.getChannel(qualifier, options.prefetch)
             .then(chan => {
-                const retry = meta.retry || { max: 5, strategy: 'direct', interval: 0 };
+                /** @type {Required<import('.').CarotteAmqp.SubscribeMeta['retry']>} */
+                const retry = meta.retry || { max: 5, strategy: 'direct', interval: 0, jitter: 0 };
 
                 const currentRetry = (Number(headers['x-retry-count']) || 0) + 1;
                 const pubOptions = messageToOptions(qualifier, message);
@@ -964,7 +965,7 @@ function contextifyLogger(context, logger) {
  * Convert a message from consume to publish options
  * @param {object} qualifier - The exchange, queue formmatted in a string more info in the README.
  * @param {amqp.Message} message - A message from the consume method
- * @return {object} options formatted for the publish method
+ * @returns options formatted for the publish method
  */
 function messageToOptions(qualifier, message) {
     return {
@@ -1030,69 +1031,6 @@ function getBufferPayload(payload, options) {
             transactionStack: getTransactionStack(options.context)
         })
     }));
-}
-
-/**
- * Update all 'x-retry' headers
- * @param {object} options - An object options compatible with publish
- * @param {object} retry - Retry object from subscriber metas
- * @return {object} An object headers
- */
-function incrementRetryHeaders(options, retry) {
-    const newHeaders = {};
-
-    if (!('x-retry-max' in options.headers)) {
-        newHeaders['x-retry-max'] = `${retry.max}`;
-    }
-    if (!('x-retry-strategy' in options.headers)) {
-        newHeaders['x-retry-strategy'] = `${retry.strategy}`;
-    }
-    if (!('x-retry-interval' in options.headers)) {
-        newHeaders['x-retry-interval'] = `${retry.interval}`;
-    }
-    if (!('x-retry-count' in options.headers)) {
-        newHeaders['x-retry-count'] = '1';
-    } else {
-        newHeaders['x-retry-count'] = `${Number(options.headers['x-retry-count']) + 1}`;
-    }
-
-    options.headers = Object.assign(options.headers, newHeaders);
-
-    return options;
-}
-
-/**
- * Filter unused headers
- * @param {object} headers - An object containing all headers
- * @return {object} An object headers
- */
-function cleanRetryHeaders(headers) {
-    return extend({}, headers, [
-        'x-retry-max',
-        'x-retry-count',
-        'x-retry-strategy',
-        'x-retry-interval'
-    ]);
-}
-
-/**
- * Compute the delay before the retry with the help of headers
- * @param {object} headers - The headers of the current message
- * @return {number} The delay to wait before the next retry
- */
-function computeNextCall(headers) {
-    const strategy = headers['x-retry-strategy'];
-    const current = Number(headers['x-retry-count']);
-    const interval = Number(headers['x-retry-interval'] || 0);
-
-    switch (strategy) {
-        case 'exponential': {
-            // eslint-disable-next-line no-restricted-properties
-            return Math.pow(2, current - 1) * interval;
-        }
-        case 'direct':
-        default: return interval;
-    }
 }
 
 Carotte.EXCHANGE_TYPE = EXCHANGE_TYPE;
