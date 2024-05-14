@@ -200,6 +200,40 @@ describe('subscriber', () => {
                     });
                 });
             });
+
+            describe('when multiple listeners are defined', () => {
+                it('should correctly handle retry strategies separately', async () => {
+                    const spy = sinon.spy();
+                    let updatedCount = 0;
+                    let wildcardCount = 0;
+                    await Promise.all([
+                        carotte.subscribe('topic/thing.updated:v1/service-name.thing.updated:v1', {}, (msg) => {
+                            spy('thing.updated', updatedCount++);
+                            throw new Error('updated failed', updatedCount);
+                        }, { description: 'bli',
+                            requestSchema: {},
+                            responseSchema: {},
+                            retry: {
+                                interval: 1,
+                                max: 2,
+                                strategy: 'direct'
+                            } }),
+                        carotte.subscribe('topic/thing.*/service-name.thing.*', {}, (msg) => {
+                            spy('thing.*', wildcardCount++);
+                        })
+                    ]);
+
+                    await carotte.publish('topic/thing.updated:v1', {});
+
+                    await new Promise((resolve) => {
+                        setTimeout(() => {
+                            resolve();
+                        }, 1000);
+                    });
+
+                    sinon.assert.callCount(spy, 4);
+                });
+            });
         });
     });
 
